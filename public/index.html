@@ -4364,7 +4364,7 @@ function brDate(v){if(!v)return '';if(v.includes('/'))return v;let [y,m,d]=v.spl
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function roleLabel(u){
   if(u.roles.includes('admin'))return 'Administrador geral';
-  if(normalizeText(u.dept)==='LEGALIZACAO')return 'Administração operacional';
+  if(normalizeText(u.dept)==='LEGALIZACAO')return 'Legalização';
   if(u.roles.includes('entregador'))return 'Entregador';
   return 'Emissor';
 }

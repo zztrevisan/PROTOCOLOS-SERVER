@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v40-single-general-admin';
+  'hiperion-protocolos-v41-legalizacao-label';
 
 
 const APP_SHELL = [
