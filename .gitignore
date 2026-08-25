@@ -8,7 +8,11 @@ banco/*.db
 banco/*.db-shm
 banco/*.db-wal
 banco/*-backup-*.db
+banco/turso-backup-*.json
 
 *.log
 .DS_Store
 Thumbs.db
+
+.vercel
+.env*

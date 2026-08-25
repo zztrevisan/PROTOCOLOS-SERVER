@@ -2,8 +2,9 @@
   "name": "protocolos-server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server-turso.js",
   "scripts": {
+    "start": "node server-turso.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

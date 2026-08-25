@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v33-autocomplete-layer';
+  'hiperion-protocolos-v36-mobile-header-fix';
 
 
 const APP_SHELL = [
