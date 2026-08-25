@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v39-access-levels';
+  'hiperion-protocolos-v40-single-general-admin';
 
 
 const APP_SHELL = [

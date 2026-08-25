@@ -3823,7 +3823,6 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
           <select id="uRole">
             <option value="emissor">Emissor</option>
             <option value="entregador">Entregador</option>
-            <option value="admin">Administrador geral</option>
           </select>
         </div>
 
@@ -3896,7 +3895,8 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
         <b>Perfis:</b><br>
         Emissor → cria e acompanha solicitações.<br>
         Entregador → recebe as entregas atribuídas e coleta assinatura.<br>
-        Administrador → acesso completo, inclusive usuários, exclusões e restauração.
+        Administrador geral → conta principal exclusiva, com usuários, exclusões e restauração.<br>
+        Legalização → administração operacional automática pelo departamento.
       </div>
     </div>
   </div>
@@ -6709,7 +6709,7 @@ function mapearUsuariosServidor(dados){
   return dados.map(u=>{
     let roles=[];
 
-    if(u.perfil==='admin')roles=['admin','entregador'];
+    if(u.perfil==='admin'&&String(u.usuario||'').trim().toLowerCase()==='admin')roles=['admin','entregador'];
     else if(u.perfil==='entregador')roles=['entregador'];
     else roles=['emissor'];
 
@@ -6775,7 +6775,7 @@ async function carregarUsuariosDoServidor(){
 function converterUsuarioSessao(u){
   let roles=[];
 
-  if(u.perfil==='admin'){
+  if(u.perfil==='admin'&&String(u.usuario||'').trim().toLowerCase()==='admin'){
     roles=['admin','entregador'];
   }else if(u.perfil==='entregador'){
     roles=['entregador'];

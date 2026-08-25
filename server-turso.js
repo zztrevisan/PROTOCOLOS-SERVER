@@ -1228,6 +1228,9 @@ function exigirAdmin(
   if (
     req.usuarioLogado
       ?.perfil !==
+    'admin' ||
+
+    String(req.usuarioLogado?.usuario || '').trim().toLowerCase() !==
     'admin'
   ) {
 
@@ -1756,6 +1759,12 @@ app.post(
           .trim()
           .toLowerCase();
 
+      if (perfil === 'admin' && login !== 'admin') {
+        return res.status(400).json({
+          erro: 'O perfil Administrador geral é exclusivo da conta principal.'
+        });
+      }
+
 
       if (
         !/^[a-z0-9._-]{3,30}$/
@@ -2109,6 +2118,12 @@ app.put(
           .trim()
           .toLowerCase();
 
+      if (perfil === 'admin' && login !== 'admin') {
+        return res.status(400).json({
+          erro: 'O perfil Administrador geral é exclusivo da conta principal.'
+        });
+      }
+
 
       if (
         !/^[a-z0-9._-]{3,30}$/
@@ -2136,7 +2151,9 @@ app.put(
 
           `
             SELECT
-              id
+              id,
+              usuario,
+              perfil
 
             FROM usuarios
 
@@ -2167,6 +2184,15 @@ app.put(
 
           });
 
+      }
+
+      if (
+        String(usuarioExistente.usuario || '').trim().toLowerCase() === 'admin' &&
+        (login !== 'admin' || perfil !== 'admin')
+      ) {
+        return res.status(400).json({
+          erro: 'A conta principal deve permanecer como Administrador geral.'
+        });
       }
 
 
