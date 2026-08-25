@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v36-mobile-header-fix';
+  'hiperion-protocolos-v37-company-address-fix';
 
 
 const APP_SHELL = [

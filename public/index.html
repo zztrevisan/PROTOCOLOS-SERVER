@@ -5060,7 +5060,7 @@ function atualizarEnderecoProtocolo(endereco){
 
 async function carregarEmpresas(){
   try{
-    const resposta=await fetch(`/api/clientes${canManageCompanies?'?inativos=1':''}`);
+    const resposta=await fetch(`/api/clientes${canManageCompanies?'?inativos=1':''}`,{cache:'no-store'});
     const dados=await resposta.json();
     if(!resposta.ok)throw new Error(dados.erro||'Erro ao carregar empresas.');
     companies=Array.isArray(dados.clientes)?dados.clientes:[];
@@ -5149,7 +5149,9 @@ $('cId').value=c.id; $('cNome').value=c.nome||''; $('cBox').value=c.box||''; $('
 async function salvarEmpresa(){
   if(!canManageCompanies)return alert('Somente Legalização e administradores podem alterar empresas.');
   const id=$('cId').value;const body={nome:$('cNome').value,box:$('cBox').value,cep:$('cCep').value,endereco:$('cEndereco').value,numero:$('cNumero').value,complemento:$('cComplemento').value,bairro:$('cBairro').value,cidade:$('cCidade').value,uf:$('cUf').value,observacao:$('cObservacao').value};
-  const resposta=await fetch(id?`/api/clientes/${id}`:'/api/clientes',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const dados=await resposta.json();if(!resposta.ok)return alert(dados.erro||'Não foi possível salvar.');
+  const resposta=await fetch(id?`/api/clientes/${id}`:'/api/clientes',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json','Cache-Control':'no-cache'},cache:'no-store',body:JSON.stringify(body)});const dados=await resposta.json();if(!resposta.ok)return alert(dados.erro||'Não foi possível salvar.');
+  if(id&&!dados.cliente)return alert('O servidor não confirmou os dados salvos. Tente novamente.');
+  if(dados.cliente){const indice=companies.findIndex(c=>Number(c.id)===Number(dados.cliente.id));if(indice>=0)companies[indice]=dados.cliente;}
   alert('Empresa salva com sucesso.');limparFormularioEmpresa();await carregarEmpresas();
 }
 

@@ -1359,6 +1359,15 @@ app.use(
 
 );
 
+// Dados operacionais nunca devem ser reaproveitados pelo cache do navegador
+// ou por uma camada intermediária da hospedagem.
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 
 // ============================================================
 // TESTE TURSO
@@ -1504,7 +1513,7 @@ app.put('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
     const valor = campo => String(req.body[campo] || '').trim() || null;
     const existente = await sqlGet(database, 'SELECT id FROM clientes WHERE id = ?', [id]);
     if (!existente) return res.status(404).json({ erro: 'Empresa não encontrada.' });
-    await sqlRun(database, `
+    const resultado = await sqlRun(database, `
       UPDATE clientes SET
         nome = ?, nome_normalizado = ?, box = ?, endereco = ?, numero = ?,
         complemento = ?, bairro = ?, cidade = ?, uf = ?, cep = ?,
@@ -1515,7 +1524,20 @@ app.put('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
       valor('numero'), valor('complemento'), valor('bairro'), valor('cidade'),
       valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao'), id
     ]);
-    res.json({ ok: true });
+    if (Number(resultado?.rowsAffected || 0) !== 1) {
+      throw new Error('A alteração da empresa não foi confirmada pelo banco.');
+    }
+    const cliente = await sqlGet(database, `
+      SELECT id, nome, box, endereco, numero, complemento,
+             bairro, cidade, uf, cep, observacao, ativo,
+             criado_em, atualizado_em
+      FROM clientes
+      WHERE id = ?
+    `, [id]);
+    if (!cliente) {
+      throw new Error('A empresa não pôde ser relida após a alteração.');
+    }
+    res.json({ ok: true, cliente });
   } catch (erro) {
     if (/unique/i.test(String(erro?.message || erro))) {
       return res.status(409).json({ erro: 'Já existe outra empresa com esse nome.' });
