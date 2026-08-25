@@ -72,6 +72,24 @@ db.exec(`
 
     entregue_em TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS clientes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    nome_normalizado TEXT NOT NULL UNIQUE,
+    box TEXT,
+    endereco TEXT,
+    numero TEXT,
+    complemento TEXT,
+    bairro TEXT,
+    cidade TEXT,
+    uf TEXT,
+    cep TEXT,
+    observacao TEXT,
+    ativo INTEGER NOT NULL DEFAULT 1,
+    criado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // ========================================
@@ -151,6 +169,18 @@ adicionarColunaSeNaoExistir(
   'TEXT'
 );
 
+// Endereço de destino informado na emissão.
+// A coluna é opcional para manter compatibilidade
+// com todos os protocolos já existentes.
+adicionarColunaSeNaoExistir(
+  'protocolos',
+  'endereco_empresa',
+  'TEXT'
+);
+
+adicionarColunaSeNaoExistir('protocolos', 'cliente_id', 'INTEGER');
+adicionarColunaSeNaoExistir('protocolos', 'cliente_box', 'TEXT');
+
 // ========================================
 // LOGIN E SENHAS
 // ========================================
@@ -220,6 +250,8 @@ db.exec(`
 
     descricao TEXT NOT NULL,
 
+    competencia TEXT,
+
     vencimento TEXT,
 
     ordem INTEGER NOT NULL DEFAULT 1,
@@ -233,6 +265,12 @@ db.exec(`
   );
 `);
 
+adicionarColunaSeNaoExistir(
+  'protocolo_itens',
+  'competencia',
+  'TEXT'
+);
+
 // Índice para deixar rápida a busca
 // dos documentos de cada protocolo.
 db.exec(`
@@ -240,6 +278,57 @@ db.exec(`
   idx_protocolo_itens_protocolo
   ON protocolo_itens(protocolo_id);
 `);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_clientes_nome
+  ON clientes(nome);
+
+  CREATE INDEX IF NOT EXISTS idx_clientes_box
+  ON clientes(box);
+`);
+
+// Base inicial extraída da planilha operacional. O box é opcional:
+// empresas novas podem ser cadastradas normalmente sem esse dado.
+const clientesIniciais = [
+  ['LIN QIYING', '742'], ['RISCAZERA', '802'],
+  ['XIN XIN COMERCIO', '138'], ['MODAS VOV', '254'],
+  ['MOREMEL', '2185'], ['CENTRO MEDICO DA MULHER', '111'],
+  ['DECO FORM', '279'], ['SANSEI IMOVEIS', '93'],
+  ['LANCHONETE TANZINHO', '2330'], ['3Y ADMINISTRACAO', '2252'],
+  ['GB COMERCIO', '2177'], ['HOURA FAMILY', '2338'],
+  ['JWC CONFECCOES', '2248'], ['PORTAL DA COREIA', '553'],
+  ['SAZ COMERCIO', '862'], ['STACCATO', '2213'],
+  ['NILSON LEE', '2094'], ['TRISSOLARIS', '2220'],
+  ['BELLA VIDA', '2264'], ['HOME ART', '2186'],
+  ['DMJ CLUTCHS', '2198'], ['LEAO COMERCIAL', '2235'],
+  ['PROBELLAS CONFECCOES', '785'], ['TJ COMERCIO', '2137'],
+  ['MEGA TEXTIL', '2266'], ['LILY MEIC', '677'],
+  ['BJ COMERCIO', '2296'], ['NAMINE CONFECCOES', '2215'],
+  ['DREAMERS COMERCIO', '2197'], ['ATLANTA', '2234'],
+  ['MEGAVICTOR', '729'], ['CAMALEAO', '2158'],
+  ['JOALHERIA ASTRA', '436'], ['STELLA RELOJOARIA', '217'],
+  ['GRANO COMERCIO', '2210'], ['FAROL SP', '751'],
+  ['APOLLO TEXTIL', '2270'], ['CLINIQUE & CO', '2229'],
+  ['MIRAO DISTRIBUIDORA', '2240']
+];
+
+function normalizarNomeCliente(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+const inserirClienteInicial = db.prepare(`
+  INSERT OR IGNORE INTO clientes (nome, nome_normalizado, box)
+  VALUES (?, ?, ?)
+`);
+
+for (const [nome, box] of clientesIniciais) {
+  inserirClienteInicial.run(nome, normalizarNomeCliente(nome), box);
+}
 
 // ========================================
 // MIGRAÇÃO DOS PROTOCOLOS ANTIGOS

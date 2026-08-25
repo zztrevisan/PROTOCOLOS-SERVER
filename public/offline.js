@@ -519,8 +519,8 @@ async function atualizarIndicadorSincronizacao(){
 
     texto.textContent=
       pendentes
-        ? `Servidor conectado · ${pendentes} pendente(s)`
-        : 'Servidor conectado · sincronizado';
+        ? `Conectado · ${pendentes} pendente(s)`
+        : 'Conectado · sincronizado';
 
   }else{
 

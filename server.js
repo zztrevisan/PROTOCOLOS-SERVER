@@ -780,6 +780,29 @@ function exigirEntregador(
 
 }
 
+function textoNormalizado(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+function podeGerenciarClientes(usuario) {
+  return usuario?.perfil === 'admin' ||
+    textoNormalizado(usuario?.departamento) === 'LEGALIZACAO';
+}
+
+function exigirGerenciaDeClientes(req, res, next) {
+  if (!podeGerenciarClientes(req.usuarioLogado)) {
+    return res.status(403).json({
+      erro: 'Somente a Legalização e administradores podem alterar empresas.'
+    });
+  }
+  next();
+}
+
 
 // ============================================================
 // TODA API ABAIXO EXIGE LOGIN
@@ -805,6 +828,113 @@ app.get(
 
   }
 );
+
+// ============================================================
+// CLIENTES / EMPRESAS
+// Consulta global; manutenção exclusiva da Legalização e Admin.
+// ============================================================
+
+app.get('/api/clientes', (req, res) => {
+  try {
+    const incluirInativos = req.query.inativos === '1' &&
+      podeGerenciarClientes(req.usuarioLogado);
+
+    const clientes = db.prepare(`
+      SELECT id, nome, box, endereco, numero, complemento,
+             bairro, cidade, uf, cep, observacao, ativo,
+             criado_em, atualizado_em
+      FROM clientes
+      ${incluirInativos ? '' : 'WHERE ativo = 1'}
+      ORDER BY nome COLLATE NOCASE
+    `).all();
+
+    res.json({
+      clientes,
+      pode_gerenciar: podeGerenciarClientes(req.usuarioLogado)
+    });
+  } catch (erro) {
+    console.error('Erro ao listar clientes:', erro);
+    res.status(500).json({ erro: 'Erro ao buscar empresas.' });
+  }
+});
+
+app.post('/api/clientes', exigirGerenciaDeClientes, (req, res) => {
+  try {
+    const nome = String(req.body.nome || '').replace(/\s+/g, ' ').trim();
+    if (!nome) return res.status(400).json({ erro: 'Nome da empresa é obrigatório.' });
+
+    const valor = campo => {
+      const texto = String(req.body[campo] || '').trim();
+      return texto || null;
+    };
+
+    const resultado = db.prepare(`
+      INSERT INTO clientes (
+        nome, nome_normalizado, box, endereco, numero, complemento,
+        bairro, cidade, uf, cep, observacao
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      nome, textoNormalizado(nome), valor('box'), valor('endereco'),
+      valor('numero'), valor('complemento'), valor('bairro'),
+      valor('cidade'), valor('uf')?.toUpperCase() || null,
+      valor('cep'), valor('observacao')
+    );
+
+    res.status(201).json({ ok: true, id: Number(resultado.lastInsertRowid) });
+  } catch (erro) {
+    if (String(erro.message).includes('UNIQUE')) {
+      return res.status(409).json({ erro: 'Esta empresa já está cadastrada.' });
+    }
+    console.error('Erro ao cadastrar cliente:', erro);
+    res.status(500).json({ erro: 'Erro ao cadastrar empresa.' });
+  }
+});
+
+app.put('/api/clientes/:id', exigirGerenciaDeClientes, (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const nome = String(req.body.nome || '').replace(/\s+/g, ' ').trim();
+    if (!Number.isInteger(id) || !nome) {
+      return res.status(400).json({ erro: 'Cadastro inválido.' });
+    }
+    const valor = campo => String(req.body[campo] || '').trim() || null;
+    const resultado = db.prepare(`
+      UPDATE clientes SET
+        nome = ?, nome_normalizado = ?, box = ?, endereco = ?, numero = ?,
+        complemento = ?, bairro = ?, cidade = ?, uf = ?, cep = ?,
+        observacao = ?, atualizado_em = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      nome, textoNormalizado(nome), valor('box'), valor('endereco'),
+      valor('numero'), valor('complemento'), valor('bairro'),
+      valor('cidade'), valor('uf')?.toUpperCase() || null,
+      valor('cep'), valor('observacao'), id
+    );
+    if (!resultado.changes) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+    res.json({ ok: true });
+  } catch (erro) {
+    if (String(erro.message).includes('UNIQUE')) {
+      return res.status(409).json({ erro: 'Já existe outra empresa com esse nome.' });
+    }
+    console.error('Erro ao editar cliente:', erro);
+    res.status(500).json({ erro: 'Erro ao editar empresa.' });
+  }
+});
+
+app.patch('/api/clientes/:id/ativo', exigirGerenciaDeClientes, (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const ativo = req.body.ativo ? 1 : 0;
+    const resultado = db.prepare(`
+      UPDATE clientes SET ativo = ?, atualizado_em = CURRENT_TIMESTAMP WHERE id = ?
+    `).run(ativo, id);
+    if (!resultado.changes) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+    res.json({ ok: true });
+  } catch (erro) {
+    console.error('Erro ao alterar cliente:', erro);
+    res.status(500).json({ erro: 'Erro ao alterar empresa.' });
+  }
+});
 
 
 // ============================================================
@@ -1641,6 +1771,11 @@ function normalizarItensDoProtocolo(
                 ''
               ).trim(),
 
+            competencia:
+              item?.competencia
+                ? String(item.competencia).trim()
+                : null,
+
             vencimento:
               item?.vencimento ===
                 undefined ||
@@ -1682,6 +1817,8 @@ function normalizarItensDoProtocolo(
         String(
           body.descricao
         ).trim(),
+
+      competencia: null,
 
       vencimento:
         body.vencimento ===
@@ -1737,6 +1874,7 @@ function buscarItensDoProtocolo(
       id,
       protocolo_id,
       descricao,
+      competencia,
       vencimento,
       ordem,
       criado_em
@@ -1808,6 +1946,9 @@ app.get(
             id,
             numero,
             cliente,
+            cliente_id,
+            cliente_box,
+            endereco_empresa,
             departamento,
             descricao,
             vencimento,
@@ -1928,6 +2069,9 @@ app.post(
     const {
       numero,
       cliente,
+      cliente_id,
+      cliente_box,
+      endereco_empresa,
       departamento,
       entregador,
       observacao
@@ -1937,6 +2081,29 @@ app.post(
       normalizarItensDoProtocolo(
         req.body
       );
+
+    const clienteCadastro = Number(cliente_id)
+      ? db.prepare(`
+          SELECT id, nome, box, endereco, numero, complemento,
+                 bairro, cidade, uf, cep
+          FROM clientes
+          WHERE id = ? AND ativo = 1
+        `).get(Number(cliente_id))
+      : null;
+
+    if (!clienteCadastro) {
+      return res.status(400).json({
+        erro: 'Selecione uma empresa ativa do cadastro.'
+      });
+    }
+
+    const enderecoCadastro = [
+      [clienteCadastro.endereco, clienteCadastro.numero, clienteCadastro.complemento]
+        .filter(Boolean).join(', '),
+      [clienteCadastro.bairro, clienteCadastro.cidade, clienteCadastro.uf]
+        .filter(Boolean).join(' - '),
+      clienteCadastro.cep ? `CEP ${clienteCadastro.cep}` : ''
+    ].filter(Boolean).join(' · ') || null;
 
     if (
       !cliente ||
@@ -2124,6 +2291,9 @@ app.post(
 
             numero,
             cliente,
+            cliente_id,
+            cliente_box,
+            endereco_empresa,
             departamento,
             descricao,
             vencimento,
@@ -2135,15 +2305,19 @@ app.post(
           )
 
           VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
           )
         `).run(
 
           numeroFinal,
 
-          String(
-            cliente
-          ).trim(),
+          clienteCadastro.nome,
+
+          Number(clienteCadastro.id),
+
+          clienteCadastro.box || null,
+
+          enderecoCadastro,
 
           String(
             departamento
@@ -2181,13 +2355,14 @@ app.post(
 
             protocolo_id,
             descricao,
+            competencia,
             vencimento,
             ordem
 
           )
 
           VALUES (
-            ?, ?, ?, ?
+            ?, ?, ?, ?, ?
           )
         `);
 
@@ -2202,6 +2377,8 @@ app.post(
             protocoloId,
 
             item.descricao,
+
+            item.competencia,
 
             item.vencimento,
 
@@ -3047,6 +3224,7 @@ app.get(
             id,
             numero,
             cliente,
+            endereco_empresa,
             departamento,
             descricao,
             vencimento,
