@@ -1524,7 +1524,7 @@ app.put('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
       valor('numero'), valor('complemento'), valor('bairro'), valor('cidade'),
       valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao'), id
     ]);
-    if (Number(resultado?.rowsAffected || 0) !== 1) {
+    if (Number(resultado?.changes || 0) !== 1) {
       throw new Error('A alteração da empresa não foi confirmada pelo banco.');
     }
     const cliente = await sqlGet(database, `
