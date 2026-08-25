@@ -3537,7 +3537,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
         </div>
       <div class="company-picker">
         <label>Cliente</label>
-        <input id="nCliente" placeholder="Pesquise a empresa" oninput="preencherEmpresaSelecionada();abrirAutocompleteEmpresas()" onfocus="abrirAutocompleteEmpresas()" onblur="fecharAutocompleteEmpresas()" autocomplete="off">
+        <input id="nCliente" placeholder="Pesquise por empresa ou box" oninput="preencherEmpresaSelecionada();abrirAutocompleteEmpresas()" onfocus="abrirAutocompleteEmpresas()" onblur="fecharAutocompleteEmpresas()" autocomplete="off">
         <div id="companyAutocomplete" class="company-autocomplete hidden"></div>
         <input id="nClienteId" type="hidden">
           <div id="empresaSelecionadaNota" class="selected-company-note"></div>
@@ -5078,7 +5078,12 @@ function atualizarOpcoesEmpresas(){
 function empresasFiltradasAutocomplete(){
   const termo=normalizeText($('nCliente')?.value||'');
   return companies
-    .filter(c=>Number(c.ativo)!==0&&(!termo||normalizeText(c.nome).includes(termo)))
+    .filter(c=>{
+      if(Number(c.ativo)===0)return false;
+      if(!termo)return true;
+      const pesquisavel=normalizeText(`${c.nome||''} ${c.box||''} ${enderecoCompletoEmpresa(c)}`);
+      return pesquisavel.includes(termo);
+    })
     .slice(0,8);
 }
 
