@@ -3436,9 +3436,9 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   <button class="menu-btn" data-view="deliveries" data-access="admin,entregador" onclick="show('deliveries',this)">Minhas entregas</button>
   <button class="menu-btn" data-view="completed" data-access="all" onclick="show('completed',this)">Protocolos entregues</button>
   <button class="menu-btn" data-view="companies" data-access="all" onclick="show('companies',this)">Empresas</button>
+  <button class="menu-btn" data-view="history" data-access="operational" onclick="show('history',this)">Histórico</button>
 
   <div class="menu-section-title admin-only">Administração</div>
-  <button class="menu-btn" data-view="history" data-access="admin" onclick="show('history',this)">Histórico</button>
   <button class="menu-btn" data-view="deleted" data-access="admin" onclick="show('deleted',this)">Protocolos excluídos</button>
   <button class="menu-btn" data-view="users" data-access="admin" onclick="show('users',this)">Usuários</button>
   <div class="sidebar-account no-print">
@@ -3743,9 +3743,9 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   </div>
 </section>
 
-<section id="history" class="view" data-view-access="admin">
+<section id="history" class="view" data-view-access="operational">
   <div class="card">
-    <div class="kicker">Administração</div><h2>Histórico de protocolos</h2>
+    <div class="kicker">Operação</div><h2>Histórico de protocolos</h2>
     <div class="searchbar"><input id="histSearch" placeholder="Pesquisar por protocolo, cliente, emissor ou recebedor..." oninput="renderHistory()"><select id="histStatus" onchange="renderHistory()"><option value="">Todos os status</option><option>Entregue</option><option>Cancelado</option></select></div>
     <table class="table"><thead><tr><th>Nº</th><th>Cliente</th><th>Departamento</th><th>Emitido por</th><th>Entregador</th><th>Recebido por</th><th>Data/hora</th><th>Status</th><th>Ações</th></tr></thead><tbody id="historyBody"></tbody></table>
   </div>
@@ -3823,7 +3823,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
           <select id="uRole">
             <option value="emissor">Emissor</option>
             <option value="entregador">Entregador</option>
-            <option value="admin">Administrador</option>
+            <option value="admin">Administrador geral</option>
           </select>
         </div>
 
@@ -3942,7 +3942,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
           <select id="editUserRole">
             <option value="emissor">Emissor</option>
             <option value="entregador">Entregador</option>
-            <option value="admin">Administrador</option>
+            <option value="admin">Administrador geral</option>
           </select>
         </div>
 
@@ -4345,10 +4345,17 @@ function save(){
 function currentUser(){
   return sessionUser || {id:null,name:'Não autenticado',dept:'',roles:[]};
 }
-function hasRole(role){let u=currentUser();return u.roles.includes('admin')||u.roles.includes(role)}
 function isAdmin(){return currentUser().roles.includes('admin')}
 function normalizeText(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase()}
 function isLegalizacao(){return normalizeText(currentUser().dept)==='LEGALIZACAO'}
+function isOperationalAdmin(){return isAdmin()||isLegalizacao()}
+function hasRole(role){
+  const u=currentUser();
+  if(isAdmin())return true;
+  if(role==='operational')return isLegalizacao();
+  if(isLegalizacao()&&(role==='emissor'||role==='entregador'))return true;
+  return u.roles.includes(role);
+}
 function nextNumber(){
   return nextProtocolNumber;
 }
@@ -4356,8 +4363,8 @@ function fmtNum(n){return String(n).padStart(6,'0')}
 function brDate(v){if(!v)return '';if(v.includes('/'))return v;let [y,m,d]=v.split('-');return `${d}/${m}/${y}`}
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function roleLabel(u){
-  if(u.roles.includes('admin')&&u.roles.includes('entregador'))return 'Admin + Entregador';
-  if(u.roles.includes('admin'))return 'Administrador';
+  if(u.roles.includes('admin'))return 'Administrador geral';
+  if(normalizeText(u.dept)==='LEGALIZACAO')return 'Administração operacional';
   if(u.roles.includes('entregador'))return 'Entregador';
   return 'Emissor';
 }
@@ -4396,7 +4403,7 @@ function applyPermissions(){
   $('companyEditor')?.classList.toggle('hidden',!canManageCompanies);
 
   $('nEmissor').value=u.name;
-  if(!isAdmin() && u.roles.includes('emissor')){
+  if(!isOperationalAdmin() && u.roles.includes('emissor')){
     $('nDept').value=u.dept;
     $('nDept').disabled=true;
   }else{
@@ -4465,7 +4472,7 @@ function voltarDoProtocolo(){
     ultimaTelaAntesProtocolo!=='protocol'
   )
     ? ultimaTelaAntesProtocolo
-    : (isAdmin() ? 'completed' : 'deliveries');
+    : (isOperationalAdmin() ? 'completed' : 'deliveries');
 
   show(destino);
 }
@@ -5391,7 +5398,7 @@ function statusBadge(s){
 
 function visibleRequestsForUser(){
   let u=currentUser();
-  if(isAdmin())return requests;
+  if(isOperationalAdmin())return requests;
   if(u.roles.includes('emissor'))return requests.filter(r=>r.emissorId===u.id || r.emissor===u.name);
   return [];
 }
@@ -5457,7 +5464,7 @@ function renderDeliveries(){
 
 function renderDashboard(){
   const u=currentUser();
-  const scope=isAdmin()?requests:(u.roles.includes('emissor')?visibleRequestsForUser():requests.filter(r=>r.resp===u.name));
+  const scope=isOperationalAdmin()?requests:(u.roles.includes('emissor')?visibleRequestsForUser():requests.filter(r=>r.resp===u.name));
   const pending=scope.filter(r=>r.status==='Aguardando entrega').length;
   const doing=scope.filter(r=>r.status==='Em entrega').length;
   const done=scope.filter(r=>r.status==='Entregue').length;
@@ -5465,7 +5472,7 @@ function renderDashboard(){
   $('sDoing').textContent=doing;
   $('sDone').textContent=done;
   $('sNext').textContent=fmtNum(nextNumber());
-  $('nextCard').classList.toggle('hidden',!(isAdmin()||u.roles.includes('emissor')));
+  $('nextCard').classList.toggle('hidden',!(isOperationalAdmin()||u.roles.includes('emissor')));
 
   const resumoItem=r=>{
     const itens=protocolItemsFromRecord(r);
@@ -5473,12 +5480,15 @@ function renderDashboard(){
   };
 
   let qa=[],help='';
-  if(isAdmin()){
+  if(isOperationalAdmin()){
     qa.push(`<button class="primary" onclick="show('new')">Nova solicitação</button>`);
     qa.push(`<button class="primary secondary" onclick="show('deliveries')">Minhas entregas</button>`);
-    qa.push(`<button class="primary secondary" onclick="show('users')">Gerenciar usuários</button>`);
-    help='Administrador com acesso completo ao sistema e às entregas atribuídas ao próprio usuário.';
-    $('dashKicker').textContent='Administrador';
+    qa.push(`<button class="primary secondary" onclick="show('history')">Histórico</button>`);
+    if(isAdmin())qa.push(`<button class="primary secondary" onclick="show('users')">Gerenciar usuários</button>`);
+    help=isAdmin()
+      ? 'Administrador geral com acesso completo, incluindo usuários e protocolos excluídos.'
+      : 'Legalização com administração operacional, sem acesso a usuários ou protocolos excluídos.';
+    $('dashKicker').textContent=isAdmin()?'Administrador geral':'Legalização';
     $('dashTitle').textContent='Minhas entregas';
     $('dashDeliveries').innerHTML=myDeliveries().map(r=>`<div class="request"><div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(resumoItem(r))}</small></div>${deliveryActionButton(r,true)}</div>`).join('')||'<div class="empty">Nenhuma entrega atribuída a este usuário.</div>';
   }else if(u.roles.includes('emissor')){
@@ -5522,7 +5532,7 @@ async function openDelivery(id){
     return;
   }
 
-  if(r.resp!==currentUser().name && !isAdmin()){
+  if(r.resp!==currentUser().name && !isOperationalAdmin()){
     alert('Esta entrega está atribuída a outro usuário.');
     return;
   }
@@ -6091,7 +6101,7 @@ async function cancelProtocolById(id){
 
     currentId = null;
     clearSign();
-    show(isAdmin() ? 'history' : 'requests');
+    show(isOperationalAdmin() ? 'history' : 'requests');
 
   }catch(erro){
     console.error(erro);

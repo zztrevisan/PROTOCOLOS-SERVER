@@ -1266,7 +1266,10 @@ function exigirEmissor(
     'admin' &&
 
     perfil !==
-    'emissor'
+    'emissor' &&
+
+    textoNormalizado(req.usuarioLogado?.departamento) !==
+    'LEGALIZACAO'
   ) {
 
     return res
@@ -1304,7 +1307,10 @@ function exigirEntregador(
     'admin' &&
 
     perfil !==
-    'entregador'
+    'entregador' &&
+
+    textoNormalizado(req.usuarioLogado?.departamento) !==
+    'LEGALIZACAO'
   ) {
 
     return res

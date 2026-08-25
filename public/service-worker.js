@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v38-company-box-search';
+  'hiperion-protocolos-v39-access-levels';
 
 
 const APP_SHELL = [
