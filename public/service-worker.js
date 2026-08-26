@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v43-collapsible-company-editor';
+  'hiperion-protocolos-v44-company-active-status';
 
 
 const APP_SHELL = [

@@ -3758,6 +3758,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
       <div class="form">
       <div class="full"><label>Nome da empresa *</label><input id="cNome"></div>
       <div><label>Box (opcional)</label><input id="cBox"></div>
+      <div><label>Situação</label><select id="cAtivo"><option value="1">Ativa — disponível nos protocolos</option><option value="0">Desativada — indisponível nos protocolos</option></select></div>
       <div><label>CEP</label><input id="cCep"></div>
         <div class="full"><label>Logradouro</label><input id="cEndereco"></div>
         <div><label>Número</label><input id="cNumero"></div>
@@ -5215,18 +5216,19 @@ function fecharEditorEmpresa(){
 
 function limparFormularioEmpresa(){
   ['cId','cNome','cBox','cCep','cEndereco','cNumero','cComplemento','cBairro','cCidade','cUf','cObservacao'].forEach(id=>$(id).value='');
+  $('cAtivo').value='1';
   $('companyEditorTitle').textContent='Cadastrar empresa';$('cNome').focus();
 }
 
 function editarEmpresa(id){
   const c=companies.find(x=>Number(x.id)===Number(id));if(!c)return;
-$('cId').value=c.id; $('cNome').value=c.nome||''; $('cBox').value=c.box||''; $('cCep').value=c.cep||''; $('cEndereco').value=c.endereco||''; $('cNumero').value=c.numero||''; $('cComplemento').value=c.complemento||''; $('cBairro').value=c.bairro||''; $('cCidade').value=c.cidade||''; $('cUf').value=c.uf||''; $('cObservacao').value=c.observacao||'';
+ $('cId').value=c.id; $('cNome').value=c.nome||''; $('cBox').value=c.box||''; $('cAtivo').value=Number(c.ativo)===0?'0':'1'; $('cCep').value=c.cep||''; $('cEndereco').value=c.endereco||''; $('cNumero').value=c.numero||''; $('cComplemento').value=c.complemento||''; $('cBairro').value=c.bairro||''; $('cCidade').value=c.cidade||''; $('cUf').value=c.uf||''; $('cObservacao').value=c.observacao||'';
   $('companyEditorTitle').textContent='Editar empresa';$('companyEditor')?.classList.remove('hidden');$('companyEditor').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function salvarEmpresa(){
   if(!canManageCompanies)return alert('Somente Legalização e administradores podem alterar empresas.');
-  const id=$('cId').value;const body={nome:$('cNome').value,box:$('cBox').value,cep:$('cCep').value,endereco:$('cEndereco').value,numero:$('cNumero').value,complemento:$('cComplemento').value,bairro:$('cBairro').value,cidade:$('cCidade').value,uf:$('cUf').value,observacao:$('cObservacao').value};
+  const id=$('cId').value;const body={nome:$('cNome').value,box:$('cBox').value,ativo:$('cAtivo').value==='1',cep:$('cCep').value,endereco:$('cEndereco').value,numero:$('cNumero').value,complemento:$('cComplemento').value,bairro:$('cBairro').value,cidade:$('cCidade').value,uf:$('cUf').value,observacao:$('cObservacao').value};
   const resposta=await fetch(id?`/api/clientes/${id}`:'/api/clientes',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json','Cache-Control':'no-cache'},cache:'no-store',body:JSON.stringify(body)});const dados=await resposta.json();if(!resposta.ok)return alert(dados.erro||'Não foi possível salvar.');
   if(id&&!dados.cliente)return alert('O servidor não confirmou os dados salvos. Tente novamente.');
   if(dados.cliente){const indice=companies.findIndex(c=>Number(c.id)===Number(dados.cliente.id));if(indice>=0)companies[indice]=dados.cliente;}

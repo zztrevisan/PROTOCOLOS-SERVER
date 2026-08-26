@@ -867,17 +867,18 @@ app.post('/api/clientes', exigirGerenciaDeClientes, (req, res) => {
       const texto = String(req.body[campo] || '').trim();
       return texto || null;
     };
+    const ativo = req.body.ativo === false ? 0 : 1;
 
     const resultado = db.prepare(`
       INSERT INTO clientes (
         nome, nome_normalizado, box, endereco, numero, complemento,
-        bairro, cidade, uf, cep, observacao
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        bairro, cidade, uf, cep, observacao, ativo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       nome, textoNormalizado(nome), valor('box'), valor('endereco'),
       valor('numero'), valor('complemento'), valor('bairro'),
       valor('cidade'), valor('uf')?.toUpperCase() || null,
-      valor('cep'), valor('observacao')
+      valor('cep'), valor('observacao'), ativo
     );
 
     res.status(201).json({ ok: true, id: Number(resultado.lastInsertRowid) });
@@ -898,17 +899,18 @@ app.put('/api/clientes/:id', exigirGerenciaDeClientes, (req, res) => {
       return res.status(400).json({ erro: 'Cadastro inválido.' });
     }
     const valor = campo => String(req.body[campo] || '').trim() || null;
+    const ativo = req.body.ativo === false ? 0 : 1;
     const resultado = db.prepare(`
       UPDATE clientes SET
         nome = ?, nome_normalizado = ?, box = ?, endereco = ?, numero = ?,
         complemento = ?, bairro = ?, cidade = ?, uf = ?, cep = ?,
-        observacao = ?, atualizado_em = CURRENT_TIMESTAMP
+        observacao = ?, ativo = ?, atualizado_em = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
       nome, textoNormalizado(nome), valor('box'), valor('endereco'),
       valor('numero'), valor('complemento'), valor('bairro'),
       valor('cidade'), valor('uf')?.toUpperCase() || null,
-      valor('cep'), valor('observacao'), id
+      valor('cep'), valor('observacao'), ativo, id
     );
     if (!resultado.changes) return res.status(404).json({ erro: 'Empresa não encontrada.' });
     res.json({ ok: true });

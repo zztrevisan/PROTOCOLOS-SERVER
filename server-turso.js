@@ -1491,15 +1491,16 @@ app.post('/api/clientes', exigirGerenciaDeClientes, async (req, res) => {
     const nome = String(req.body.nome || '').replace(/\s+/g, ' ').trim();
     if (!nome) return res.status(400).json({ erro: 'Nome da empresa é obrigatório.' });
     const valor = campo => String(req.body[campo] || '').trim() || null;
+    const ativo = req.body.ativo === false ? 0 : 1;
     const resultado = await sqlRun(database, `
       INSERT INTO clientes (
         nome, nome_normalizado, box, endereco, numero, complemento,
-        bairro, cidade, uf, cep, observacao
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        bairro, cidade, uf, cep, observacao, ativo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       nome, textoNormalizado(nome), valor('box'), valor('endereco'),
       valor('numero'), valor('complemento'), valor('bairro'), valor('cidade'),
-      valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao')
+      valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao'), ativo
     ]);
     res.status(201).json({ ok: true, id: Number(resultado?.lastInsertRowid || 0) });
   } catch (erro) {
@@ -1520,18 +1521,19 @@ app.put('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
       return res.status(400).json({ erro: 'Cadastro inválido.' });
     }
     const valor = campo => String(req.body[campo] || '').trim() || null;
+    const ativo = req.body.ativo === false ? 0 : 1;
     const existente = await sqlGet(database, 'SELECT id FROM clientes WHERE id = ?', [id]);
     if (!existente) return res.status(404).json({ erro: 'Empresa não encontrada.' });
     const resultado = await sqlRun(database, `
       UPDATE clientes SET
         nome = ?, nome_normalizado = ?, box = ?, endereco = ?, numero = ?,
         complemento = ?, bairro = ?, cidade = ?, uf = ?, cep = ?,
-        observacao = ?, atualizado_em = CURRENT_TIMESTAMP
+        observacao = ?, ativo = ?, atualizado_em = CURRENT_TIMESTAMP
       WHERE id = ?
     `, [
       nome, textoNormalizado(nome), valor('box'), valor('endereco'),
       valor('numero'), valor('complemento'), valor('bairro'), valor('cidade'),
-      valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao'), id
+      valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao'), ativo, id
     ]);
     if (Number(resultado?.changes || 0) !== 1) {
       throw new Error('A alteração da empresa não foi confirmada pelo banco.');
