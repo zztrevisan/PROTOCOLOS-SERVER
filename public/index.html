@@ -5234,12 +5234,15 @@ function renderCompanies(){
   if($('companyMissingCount'))$('companyMissingCount').textContent=lista.length-comEndereco;
   alvo.innerHTML=lista.map(c=>{
     const endereco=enderecoCompletoEmpresa(c);
-    const enderecoResumido=[c.endereco,c.bairro].filter(Boolean).join(' · ');
+    const ruaENumero=[c.endereco,c.numero].filter(Boolean).join(', ');
+    const enderecoResumido=[ruaENumero,c.bairro].filter(Boolean).join(' · ');
     const inativa=Number(c.ativo)===0;
+    const localidade=[c.cidade,c.uf].filter(Boolean).join(' / ');
     return `<div class="company-row${inativa?' is-inactive':''}">
       <div class="company-card-main">
         <div class="company-card-head"><strong>${esc(c.nome)}</strong><span class="company-status-pill ${inativa?'is-inactive':'is-active'}">${inativa?'Inativa':'Ativa'}</span></div>
         ${enderecoResumido?`<a class="company-address-link company-card-address" href="${esc(urlGoogleMaps(endereco))}" target="_blank" rel="noopener" title="Abrir endereço no Google Maps">${esc(enderecoResumido)}</a>`:'<span class="company-card-address is-missing">Endereço ainda não cadastrado</span>'}
+        ${(localidade||c.cep)?`<div class="company-card-meta">${localidade?`<span>${esc(localidade)}</span>`:''}${c.cep?`<span>CEP ${esc(c.cep)}</span>`:''}</div>`:''}
       </div>
       <div class="company-actions"><span class="company-box">${c.box?`Box ${esc(c.box)}`:'Sem box'}</span>${canManageCompanies?`<button class="primary secondary" type="button" onclick="editarEmpresa(${Number(c.id)})">Editar</button><button class="primary secondary" type="button" onclick="alterarEmpresaAtiva(${Number(c.id)},${inativa?1:0})">${inativa?'Ativar':'Desativar'}</button>`:''}</div>
     </div>`;
