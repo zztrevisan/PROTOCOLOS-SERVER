@@ -1266,8 +1266,7 @@ label{font-size:11.5px;color:#344054;margin-bottom:6px}
 }
 .cancel-reason-trigger{
   display:inline-flex;
-  flex-direction:column;
-  align-items:flex-start;
+  align-items:center;
   gap:5px;
   max-width:100%;
   padding:0;
@@ -1279,16 +1278,19 @@ label{font-size:11.5px;color:#344054;margin-bottom:6px}
 }
 .cancel-reason-trigger .badge{pointer-events:none}
 .cancel-reason-link{
-  color:#a83c48;
-  font-size:10px;
-  font-weight:850;
-  line-height:1.2;
-  text-decoration:underline;
-  text-underline-offset:2px;
+  color:#1478bd;
+  font-size:13px;
+  font-weight:900;
+  line-height:1;
 }
 .cancel-reason-trigger:hover .badge,
 .cancel-reason-trigger:focus-visible .badge{
-  box-shadow:0 0 0 3px rgba(168,60,72,.12)!important;
+  box-shadow:0 0 0 3px rgba(198,106,5,.12)!important;
+}
+.cancel-reason-trigger .badge.cancelled{
+  background:#fff5e5!important;
+  color:#99600b!important;
+  border-color:#f1d19e!important;
 }
 .cancel-reason-trigger:focus-visible{
   outline:2px solid #7fb7da;
@@ -6674,7 +6676,7 @@ function renderHistory(){
               aria-label="Protocolo ${fmtNum(p.num)} cancelado. Ver motivo do cancelamento"
             >
               ${statusBadge(p.status)}
-              <span class="cancel-reason-link">Ver motivo</span>
+              <span class="cancel-reason-link" aria-hidden="true">↗</span>
             </button>`
           : statusBadge(p.status)}
       </td>
