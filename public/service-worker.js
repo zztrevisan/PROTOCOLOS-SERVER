@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v49-company-address-number';
+  'hiperion-protocolos-v50-recent-protocol-companies';
 
 
 const APP_SHELL = [

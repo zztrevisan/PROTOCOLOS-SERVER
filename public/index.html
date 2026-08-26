@@ -3956,7 +3956,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
     </div>
     <div class="modal-body">
       <div class="company-picker-search"><label for="companyPickerSearch">Pesquisar empresa</label><input id="companyPickerSearch" placeholder="Digite nome, box, CEP ou endereço..." oninput="renderAutocompleteEmpresas()" autocomplete="off"></div>
-      <section id="companyPickerRecentSection"><div class="company-picker-section-head"><strong>Recentes</strong><span>Acesso rápido</span></div><div id="companyPickerRecent" class="company-picker-results"></div></section>
+      <section id="companyPickerRecentSection"><div class="company-picker-section-head"><strong>Usadas recentemente</strong><span>Últimos protocolos</span></div><div id="companyPickerRecent" class="company-picker-results"></div></section>
       <section><div class="company-picker-section-head"><strong>Todas as empresas ativas</strong><span id="companyPickerCount"></span></div><div id="companyPickerAll" class="company-picker-results"></div></section>
     </div>
   </div>
@@ -5154,13 +5154,20 @@ function empresasFiltradasAutocomplete(){
     .sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR'));
 }
 
-function idsEmpresasRecentes(){
-  try{return JSON.parse(localStorage.getItem('hiperionRecentCompanies')||'[]').map(Number).filter(Number.isFinite).slice(0,6);}catch{return [];}
-}
-
-function registrarEmpresaRecente(id){
-  const ids=[Number(id),...idsEmpresasRecentes().filter(item=>item!==Number(id))].slice(0,6);
-  try{localStorage.setItem('hiperionRecentCompanies',JSON.stringify(ids));}catch{}
+function empresasUsadasRecentemente(){
+  const resultado=[];
+  const vistos=new Set();
+  [...requests].sort((a,b)=>new Date(b.created||0)-new Date(a.created||0)).forEach(protocolo=>{
+    if(resultado.length>=6)return;
+    const empresa=companies.find(c=>Number(c.ativo)!==0&&(
+      (protocolo.clienteId&&Number(c.id)===Number(protocolo.clienteId))||
+      normalizeText(c.nome)===normalizeText(protocolo.cliente)
+    ));
+    if(!empresa||vistos.has(Number(empresa.id)))return;
+    vistos.add(Number(empresa.id));
+    resultado.push(empresa);
+  });
+  return resultado;
 }
 
 function cardSeletorEmpresa(c){
@@ -5170,10 +5177,8 @@ function cardSeletorEmpresa(c){
 function renderAutocompleteEmpresas(){
   const lista=empresasFiltradasAutocomplete();
   const termo=normalizeText($('companyPickerSearch')?.value||'');
-  const idsRecentes=idsEmpresasRecentes();
-  let recentes=idsRecentes.map(id=>companies.find(c=>Number(c.id)===id&&Number(c.ativo)!==0)).filter(Boolean);
-  if(!recentes.length)recentes=companies.filter(c=>Number(c.ativo)!==0).sort((a,b)=>Number(b.id)-Number(a.id)).slice(0,6);
-  $('companyPickerRecentSection')?.classList.toggle('hidden',Boolean(termo));
+  const recentes=empresasUsadasRecentemente();
+  $('companyPickerRecentSection')?.classList.toggle('hidden',Boolean(termo)||!recentes.length);
   if($('companyPickerRecent'))$('companyPickerRecent').innerHTML=recentes.map(cardSeletorEmpresa).join('');
   if($('companyPickerCount'))$('companyPickerCount').textContent=`${lista.length} encontrada${lista.length===1?'':'s'}`;
   if($('companyPickerAll'))$('companyPickerAll').innerHTML=lista.length?lista.map(cardSeletorEmpresa).join(''):'<div class="company-autocomplete-empty">Nenhuma empresa ativa encontrada.</div>';
@@ -5193,7 +5198,6 @@ function fecharAutocompleteEmpresas(){
 function selecionarEmpresaAutocomplete(id){
   const empresa=companies.find(c=>Number(c.id)===Number(id));
   if(!empresa)return;
-  registrarEmpresaRecente(empresa.id);
   $('nCliente').value=empresa.nome;
   preencherEmpresaSelecionada();
   fecharAutocompleteEmpresas();
@@ -6697,6 +6701,7 @@ function aplicarDadosProtocolos(dados,proximoNumero=null){
   requests=dados.map(p=>({
     id:Number(p.id),
     num:Number(p.numero),
+    clienteId:Number(p.cliente_id)||null,
     cliente:p.cliente,
     box:p.cliente_box||'',
     endereco:p.endereco_empresa||'',
