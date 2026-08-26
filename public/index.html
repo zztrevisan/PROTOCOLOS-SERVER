@@ -1199,6 +1199,9 @@ label{font-size:11.5px;color:#344054;margin-bottom:6px}
   font-size:12px;
   line-height:1.55;
   white-space:pre-line;
+  overflow-wrap:anywhere;
+  max-height:45vh;
+  overflow-y:auto;
 }
 .hip-dialog-body{
   padding:0 20px 18px 42px;
@@ -1260,6 +1263,37 @@ label{font-size:11.5px;color:#344054;margin-bottom:6px}
   background:#18794e!important;
   color:#fff!important;
   border:1px solid #18794e!important;
+}
+.cancel-reason-trigger{
+  display:inline-flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:5px;
+  max-width:100%;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  cursor:pointer;
+}
+.cancel-reason-trigger .badge{pointer-events:none}
+.cancel-reason-link{
+  color:#a83c48;
+  font-size:10px;
+  font-weight:850;
+  line-height:1.2;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+.cancel-reason-trigger:hover .badge,
+.cancel-reason-trigger:focus-visible .badge{
+  box-shadow:0 0 0 3px rgba(168,60,72,.12)!important;
+}
+.cancel-reason-trigger:focus-visible{
+  outline:2px solid #7fb7da;
+  outline-offset:4px;
+  border-radius:8px;
 }
 @media(max-width:620px){
   .hip-dialog-backdrop{
@@ -3415,7 +3449,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
           <input
             id="loginUsuario"
             autocomplete="username"
-            placeholder="Ex.: admin"
+            placeholder="Digite seu Login"
             required
           >
         </div>
@@ -4112,6 +4146,8 @@ function hiperionDialog(options={}){
     cancelBtn.textContent=options.cancelText||'Cancelar';
     confirmBtn.textContent=options.confirmText||'Confirmar';
     confirmBtn.className=`primary hip-dialog-confirm ${type}`;
+    cancelBtn.classList.toggle('hidden',Boolean(options.hideCancel));
+    confirmBtn.classList.toggle('hidden',Boolean(options.hideConfirm));
 
     body.classList.toggle('hidden',!hasInput);
 
@@ -6629,8 +6665,18 @@ function renderHistory(){
       <td>${esc(p.recebido||'—')}</td>
       <td>${p.date} ${p.time}</td>
       <td>
-        ${statusBadge(p.status)}
-        ${p.status==='Cancelado'?`<br><small style="color:#777">${esc(p.reason||'—')}</small>`:''}
+        ${p.status==='Cancelado'
+          ? `<button
+              class="cancel-reason-trigger"
+              type="button"
+              onclick="abrirMotivoCancelamento(${p.id})"
+              title="Ver motivo do cancelamento"
+              aria-label="Protocolo ${fmtNum(p.num)} cancelado. Ver motivo do cancelamento"
+            >
+              ${statusBadge(p.status)}
+              <span class="cancel-reason-link">Ver motivo</span>
+            </button>`
+          : statusBadge(p.status)}
       </td>
       <td>
         ${isAdmin()?`
@@ -6646,6 +6692,31 @@ function renderHistory(){
       </td>
     </tr>
   `).join('')||'<tr><td colspan="9" class="empty">Nenhum protocolo registrado.</td></tr>';
+}
+
+function abrirMotivoCancelamento(id){
+  const protocolo =
+    protocols.find(item=>item.id===Number(id)) ||
+    requests.find(item=>item.id===Number(id));
+
+  if(!protocolo){
+    alert('Protocolo não encontrado.');
+    return;
+  }
+
+  const motivo=String(
+    protocolo.reason ||
+    protocolo.cancelReason ||
+    'Sem motivo informado'
+  ).trim() || 'Sem motivo informado';
+
+  hiperionDialog({
+    title:`Motivo do cancelamento · Protocolo ${fmtNum(protocolo.num)}`,
+    message:motivo,
+    type:'warning',
+    confirmText:'Fechar',
+    hideCancel:true
+  });
 }
 
 let impressaoProtocoloAtiva=false;
