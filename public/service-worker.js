@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v45-company-picker-modal';
+  'hiperion-protocolos-v46-company-picker-overflow-fix';
 
 
 const APP_SHELL = [
