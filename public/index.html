@@ -2628,13 +2628,32 @@ body.protocol-preview-mode #printArea .sign img{
 .company-box{font-weight:800;color:var(--navy);white-space:nowrap}
 .company-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 .company-actions button{padding:7px 10px}
+.company-directory-card{min-width:0}
+.company-directory-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 190px auto;gap:9px;align-items:center;margin-top:14px}
+.company-directory-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:13px 0}
+.company-directory-stat{padding:11px 12px;border:1px solid #dfe8ee;border-radius:11px;background:#f8fafc}
+.company-directory-stat strong{display:block;color:var(--navy);font-size:19px;line-height:1}
+.company-directory-stat span{display:block;margin-top:5px;color:var(--muted);font-size:9px;font-weight:750;text-transform:uppercase;letter-spacing:.04em}
+.company-card-main{min-width:0;flex:1}
+.company-card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.company-card-head strong{font-size:13px;color:#20364e}
+.company-card-address{display:flex;align-items:flex-start;gap:7px;margin-top:7px;color:#557087;font-size:11px;line-height:1.45}
+.company-card-address:before{content:'⌂';flex:0 0 auto;color:#2495c8;font-weight:900}
+.company-card-address.is-missing{color:#9a6d32}.company-card-address.is-missing:before{content:'!';color:#d4932f}
+.company-card-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.company-card-meta span{padding:4px 7px;border-radius:999px;background:#f0f4f7;color:#66798d;font-size:9px;font-weight:750}
+.company-row.is-inactive{opacity:.66;background:#f6f7f8!important}
+.company-status-pill{padding:4px 7px;border-radius:999px;background:#e5f5ed;color:#25805a;font-size:8px;font-weight:850;text-transform:uppercase;letter-spacing:.04em}
+.company-status-pill.is-inactive{background:#edf0f3;color:#758291}
+.company-editor-card{position:sticky;top:92px;align-self:start;max-height:calc(100dvh - 112px);overflow:auto}
 .selected-company-note{margin-top:8px;padding:10px 12px;border-radius:9px;background:#eef7ff;color:#164b72;font-size:12px;display:none}
 .item-composer-v17{align-items:end}
 .item-field-date{display:grid;grid-template-rows:auto auto;align-self:stretch}
 .item-field-date>.no-expiry-flag{grid-row:1;margin:0 0 8px;align-self:end}
 .item-field-date>#nItemVenc{grid-row:2}
 .item-field-date>label:not(.no-expiry-flag){display:none}
-@media(max-width:900px){.company-grid{grid-template-columns:1fr}.company-row{align-items:flex-start;flex-direction:column}.company-actions{justify-content:flex-start}}
+@media(max-width:900px){.company-grid{grid-template-columns:1fr}.company-row{align-items:flex-start;flex-direction:column}.company-actions{justify-content:flex-start}.company-directory-toolbar{grid-template-columns:1fr}.company-directory-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.company-editor-card{position:static;max-height:none}}
+@media(max-width:520px){.company-directory-stats{grid-template-columns:1fr}.company-directory-stat{display:flex;align-items:center;justify-content:space-between}.company-directory-stat span{margin:0;text-align:right}}
 
 /* EXPERIÊNCIA V18 · NOVO PROTOCOLO */
 .form-layout-v17{gap:20px}
@@ -3506,7 +3525,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   <div class="card">
     <div class="kicker">Escritório</div><h2>Solicitações / protocolos gerados</h2>
     <div class="searchbar">
-      <input id="reqSearch" placeholder="Pesquisar cliente, protocolo ou descrição..." oninput="renderRequests()">
+      <input id="reqSearch" placeholder="Pesquisar protocolo, empresa, box, documento ou responsável..." oninput="renderRequests()">
       <select id="reqStatus" onchange="renderRequests()"><option value="">Todos os status</option><option>Aguardando entrega</option><option>Em entrega</option><option>Entregue</option><option>Cancelado</option></select>
     </div>
     <div id="requestList"></div>
@@ -3639,7 +3658,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
     <div class="kicker">Consulta</div><h2>Protocolos entregues</h2>
     <p class="hint">Todos os usuários podem consultar os protocolos já entregues. Esta tela é somente leitura: ninguém altera os dados ou a assinatura por aqui.</p>
     <div class="searchbar">
-      <input id="completedSearch" placeholder="Pesquisar protocolo, cliente, departamento, emissor ou recebedor..." oninput="renderCompleted()">
+      <input id="completedSearch" placeholder="Pesquisar protocolo, empresa, box, documento ou responsável..." oninput="renderCompleted()">
       <select id="completedDept" onchange="renderCompleted()">
         <option value="">Todos os departamentos</option>
         <option>Fiscal</option>
@@ -3716,14 +3735,24 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
 
 <section id="companies" class="view">
   <div class="page-section-head">
-    <div><div class="kicker">Cadastro global</div><h2>Empresas</h2><p>Todos podem consultar. Somente Legalização e administradores podem cadastrar ou alterar.</p></div>
+    <div><div class="kicker">Cadastro global</div><h2>Diretório de empresas</h2><p>Consulte rapidamente box, endereço e dados cadastrais. A Legalização mantém as informações atualizadas.</p></div>
   </div>
   <div class="company-grid">
-    <div class="card">
-    <div class="searchbar"><input id="companySearch" placeholder="Pesquisar nome, endereço ou box..." oninput="renderCompanies()"></div>
+    <div class="card company-directory-card">
+      <div class="kicker">Consulta</div><h2>Empresas cadastradas</h2>
+      <div class="company-directory-toolbar">
+        <input id="companySearch" placeholder="Pesquisar nome, box, CEP, endereço, cidade..." oninput="renderCompanies()">
+        <select id="companyStatusFilter" onchange="renderCompanies()"><option value="all">Todas as empresas</option><option value="active">Somente ativas</option><option value="inactive">Somente inativas</option><option value="missing-address">Sem endereço</option></select>
+        <button class="primary company-manage-only hidden" type="button" onclick="abrirNovaEmpresa()">+ Nova empresa</button>
+      </div>
+      <div class="company-directory-stats">
+        <div class="company-directory-stat"><strong id="companyTotalCount">0</strong><span>Empresas exibidas</span></div>
+        <div class="company-directory-stat"><strong id="companyAddressCount">0</strong><span>Com endereço</span></div>
+        <div class="company-directory-stat"><strong id="companyMissingCount">0</strong><span>Sem endereço</span></div>
+      </div>
       <div id="companyList" class="company-list"></div>
     </div>
-    <div id="companyEditor" class="card hidden">
+    <div id="companyEditor" class="card company-editor-card hidden">
       <div class="kicker">Legalização</div><h2 id="companyEditorTitle">Cadastrar empresa</h2>
       <input id="cId" type="hidden">
       <div class="form">
@@ -3746,7 +3775,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
 <section id="history" class="view" data-view-access="operational">
   <div class="card">
     <div class="kicker">Operação</div><h2>Histórico de protocolos</h2>
-    <div class="searchbar"><input id="histSearch" placeholder="Pesquisar por protocolo, cliente, emissor ou recebedor..." oninput="renderHistory()"><select id="histStatus" onchange="renderHistory()"><option value="">Todos os status</option><option>Entregue</option><option>Cancelado</option></select></div>
+    <div class="searchbar"><input id="histSearch" placeholder="Pesquisar protocolo, empresa, box, documento ou responsável..." oninput="renderHistory()"><select id="histStatus" onchange="renderHistory()"><option value="">Todos os status</option><option>Entregue</option><option>Cancelado</option></select></div>
     <table class="table"><thead><tr><th>Nº</th><th>Cliente</th><th>Departamento</th><th>Emitido por</th><th>Entregador</th><th>Recebido por</th><th>Data/hora</th><th>Status</th><th>Ações</th></tr></thead><tbody id="historyBody"></tbody></table>
   </div>
 </section>
@@ -3764,7 +3793,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
     <div class="searchbar">
       <input
         id="deletedSearch"
-        placeholder="Pesquisar por protocolo, cliente, emissor ou quem excluiu..."
+        placeholder="Pesquisar protocolo, empresa, box, documento ou quem excluiu..."
         oninput="renderDeletedProtocols()"
       >
       <select id="deletedStatus" onchange="renderDeletedProtocols()">
@@ -4401,6 +4430,7 @@ function applyPermissions(){
   document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('hidden',!isAdmin()));
   canManageCompanies=isAdmin()||isLegalizacao();
   $('companyEditor')?.classList.toggle('hidden',!canManageCompanies);
+  document.querySelectorAll('.company-manage-only').forEach(el=>el.classList.toggle('hidden',!canManageCompanies));
 
   $('nEmissor').value=u.name;
   if(!isOperationalAdmin() && u.roles.includes('emissor')){
@@ -5073,6 +5103,7 @@ async function carregarEmpresas(){
     companies=Array.isArray(dados.clientes)?dados.clientes:[];
     canManageCompanies=Boolean(dados.pode_gerenciar);
     $('companyEditor')?.classList.toggle('hidden',!canManageCompanies);
+    document.querySelectorAll('.company-manage-only').forEach(el=>el.classList.toggle('hidden',!canManageCompanies));
     atualizarOpcoesEmpresas();
     renderCompanies();
   }catch(erro){console.error(erro);if($('companies')?.classList.contains('active'))alert(erro.message);}
@@ -5142,9 +5173,39 @@ function preencherEmpresaSelecionada(){
 
 function renderCompanies(){
   const alvo=$('companyList');if(!alvo)return;
-  const q=normalizeText($('companySearch')?.value);
-  const lista=companies.filter(c=>!q||normalizeText(`${c.nome} ${c.box||''} ${enderecoCompletoEmpresa(c)}`).includes(q));
-  alvo.innerHTML=lista.map(c=>{const endereco=enderecoCompletoEmpresa(c);return `<div class="company-row"><div><strong>${esc(c.nome)}</strong>${endereco?`<a class="company-address-link" href="${esc(urlGoogleMaps(endereco))}" target="_blank" rel="noopener"><small>${esc(endereco)}</small></a>`:'<small>Endereço ainda não cadastrado</small>'}${Number(c.ativo)===0?'<small><b>Cadastro inativo</b></small>':''}</div><div class="company-actions"><span class="company-box">${c.box?`Box ${esc(c.box)}`:'Sem box'}</span>${canManageCompanies?`<button class="primary secondary" onclick="editarEmpresa(${c.id})">Editar</button><button class="primary secondary" onclick="alterarEmpresaAtiva(${c.id},${Number(c.ativo)===0?1:0})">${Number(c.ativo)===0?'Ativar':'Desativar'}</button>`:''}</div></div>`}).join('')||'<div class="empty">Nenhuma empresa encontrada.</div>';
+  const q=normalizeText($('companySearch')?.value||'');
+  const filtro=$('companyStatusFilter')?.value||'all';
+  const lista=companies.filter(c=>{
+    const inativa=Number(c.ativo)===0;
+    const endereco=enderecoCompletoEmpresa(c);
+    const bateFiltro=filtro==='all'||(filtro==='active'&&!inativa)||(filtro==='inactive'&&inativa)||(filtro==='missing-address'&&!endereco);
+    const pesquisavel=normalizeText([c.nome,c.box,c.cep,c.endereco,c.numero,c.complemento,c.bairro,c.cidade,c.uf,c.observacao,c.box?`box ${c.box}`:''].filter(Boolean).join(' '));
+    return bateFiltro&&(!q||pesquisavel.includes(q));
+  });
+  const comEndereco=lista.filter(c=>Boolean(enderecoCompletoEmpresa(c))).length;
+  if($('companyTotalCount'))$('companyTotalCount').textContent=lista.length;
+  if($('companyAddressCount'))$('companyAddressCount').textContent=comEndereco;
+  if($('companyMissingCount'))$('companyMissingCount').textContent=lista.length-comEndereco;
+  alvo.innerHTML=lista.map(c=>{
+    const endereco=enderecoCompletoEmpresa(c);
+    const inativa=Number(c.ativo)===0;
+    const localidade=[c.cidade,c.uf].filter(Boolean).join(' / ');
+    return `<div class="company-row${inativa?' is-inactive':''}">
+      <div class="company-card-main">
+        <div class="company-card-head"><strong>${esc(c.nome)}</strong><span class="company-status-pill ${inativa?'is-inactive':'is-active'}">${inativa?'Inativa':'Ativa'}</span></div>
+        ${endereco?`<a class="company-address-link company-card-address" href="${esc(urlGoogleMaps(endereco))}" target="_blank" rel="noopener" title="Abrir endereço no Google Maps">${esc(endereco)}</a>`:'<span class="company-card-address is-missing">Endereço ainda não cadastrado</span>'}
+        <div class="company-card-meta">${localidade?`<span>${esc(localidade)}</span>`:''}${c.cep?`<span>CEP ${esc(c.cep)}</span>`:''}${c.observacao?`<span>${esc(c.observacao)}</span>`:''}</div>
+      </div>
+      <div class="company-actions"><span class="company-box">${c.box?`Box ${esc(c.box)}`:'Sem box'}</span>${canManageCompanies?`<button class="primary secondary" type="button" onclick="editarEmpresa(${Number(c.id)})">Editar</button><button class="primary secondary" type="button" onclick="alterarEmpresaAtiva(${Number(c.id)},${inativa?1:0})">${inativa?'Ativar':'Desativar'}</button>`:''}</div>
+    </div>`;
+  }).join('')||'<div class="empty">Nenhuma empresa encontrada com esses filtros.</div>';
+}
+
+function abrirNovaEmpresa(){
+  if(!canManageCompanies)return;
+  limparFormularioEmpresa();
+  $('companyEditor')?.classList.remove('hidden');
+  $('companyEditor')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function limparFormularioEmpresa(){
@@ -5396,6 +5457,19 @@ function statusBadge(s){
   return `<span class="badge ${cls}">${esc(texto)}</span>`;
 }
 
+function protocolSearchText(p){
+  const itens=protocolItemsFromRecord(p).map(item=>[item.descricao,item.competencia,item.vencimento].filter(Boolean).join(' ')).join(' ');
+  return normalizeText([
+    fmtNum(p.num),p.num,p.cliente,p.box,p.box?`box ${p.box}`:'',p.endereco,p.dept,itens,p.desc,
+    p.emissor,p.resp,p.recebido,p.obs,p.status,p.reason,p.cancelReason,p.excluidoPor,p.date,p.time
+  ].filter(Boolean).join(' '));
+}
+
+function protocolMatchesSearch(p,query){
+  const q=normalizeText(query||'');
+  return !q||protocolSearchText(p).includes(q);
+}
+
 function visibleRequestsForUser(){
   let u=currentUser();
   if(isOperationalAdmin())return requests;
@@ -5405,11 +5479,10 @@ function visibleRequestsForUser(){
 
 function renderRequests(){
   if(!$('requestList'))return;
-  const q=($('reqSearch')?.value||'').toLowerCase();
+  const q=$('reqSearch')?.value||'';
   const st=$('reqStatus')?.value||'';
   const list=visibleRequestsForUser().filter(r=>{
-    const itensTxt=protocolItemsFromRecord(r).map(x=>x.descricao).join(' ');
-    return (!st||r.status===st)&&(!q||`${fmtNum(r.num)} ${r.cliente} ${r.dept} ${itensTxt} ${r.emissor} ${r.resp}`.toLowerCase().includes(q));
+    return (!st||r.status===st)&&protocolMatchesSearch(r,q);
   });
 
   $('requestList').innerHTML=list.map(r=>{
@@ -5421,7 +5494,7 @@ function renderRequests(){
       <div class="request">
         <div>
           <strong><span class="protocol-number">${fmtNum(r.num)}</span>${esc(r.cliente)}</strong>
-          <small>${esc(r.dept)} · Emitido por ${esc(r.emissor)} · Entregador ${esc(r.resp)}<br>${esc(resumo)}</small>
+          <small>${r.box?`Box ${esc(r.box)} · `:''}${esc(r.dept)} · Emitido por ${esc(r.emissor)} · Entregador ${esc(r.resp)}<br>${esc(resumo)}</small>
         </div>
         <div class="statusline">
           ${statusBadge(r.status)}
@@ -5653,16 +5726,16 @@ function setProtocolMode(readOnly){
 }
 function renderCompleted(){
   if(!$('completedList')) return;
-  const q=($('completedSearch')?.value||'').toLowerCase();
+  const q=$('completedSearch')?.value||'';
   const dept=$('completedDept')?.value||'';
   const delivered=protocols.filter(p=>p.status==='Entregue')
-    .filter(p=>(!dept||p.dept===dept) && (!q || `${fmtNum(p.num)} ${p.cliente} ${p.dept} ${p.emissor} ${p.resp} ${p.recebido} ${p.desc||''}`.toLowerCase().includes(q)));
+    .filter(p=>(!dept||p.dept===dept)&&protocolMatchesSearch(p,q));
 
   $('completedList').innerHTML=delivered.map(p=>`
     <div class="request">
       <div>
         <strong><span class="protocol-number">${fmtNum(p.num)}</span>${esc(p.cliente)}</strong>
-        <small>${esc(p.dept||'—')} · Emitido por: ${esc(p.emissor||'—')} · Entregue por: ${esc(p.resp||'—')}<br>
+        <small>${p.box?`Box ${esc(p.box)} · `:''}${esc(p.dept||'—')} · Emitido por: ${esc(p.emissor||'—')} · Entregue por: ${esc(p.resp||'—')}<br>
         Recebido por: ${esc(p.recebido||'—')} · ${esc(p.date||'')} ${esc(p.time||'')}</small>
       </div>
       <div class="statusline">
@@ -6212,6 +6285,8 @@ async function carregarProtocolosExcluidos(){
       id: Number(p.id),
       num: Number(p.numero),
       cliente: p.cliente || '',
+      box: p.cliente_box || '',
+      endereco: p.endereco_empresa || '',
       dept: p.departamento || '',
       desc: p.descricao || '',
       emissor: p.emissor || '',
@@ -6244,23 +6319,13 @@ function renderDeletedProtocols(){
     return;
   }
 
-  const q = ($('deletedSearch')?.value || '').trim().toLowerCase();
+  const q = $('deletedSearch')?.value || '';
   const st = $('deletedStatus')?.value || '';
 
   const filtrados = deletedProtocols.filter(p => {
     const bateStatus = !st || p.status === st;
 
-    const texto = `
-      ${fmtNum(p.num)}
-      ${p.cliente}
-      ${p.dept}
-      ${p.emissor}
-      ${p.resp}
-      ${p.excluidoPor}
-      ${p.desc}
-    `.toLowerCase();
-
-    return bateStatus && (!q || texto.includes(q));
+    return bateStatus&&protocolMatchesSearch(p,q);
   });
 
   lista.innerHTML = filtrados.map(p => {
@@ -6293,7 +6358,7 @@ function renderDeletedProtocols(){
           </strong>
 
           <small>
-            ${esc(p.dept || '—')} ·
+            ${p.box?`Box ${esc(p.box)} · `:''}${esc(p.dept || '—')} ·
             Emitido por: ${esc(p.emissor || '—')} ·
             Entregador: ${esc(p.resp || '—')}
             <br>
@@ -6488,18 +6553,18 @@ async function deleteProtocolForever(id){
 function renderHistory(){
   if(!$('historyBody'))return;
 
-  let q=($('histSearch')?.value||'').toLowerCase();
+  let q=$('histSearch')?.value||'';
   let st=$('histStatus')?.value||'';
 
   let list=protocols.filter(p=>
     (!st||p.status===st) &&
-    (!q||`${fmtNum(p.num)} ${p.cliente} ${p.dept} ${p.emissor} ${p.resp} ${p.recebido}`.toLowerCase().includes(q))
+    protocolMatchesSearch(p,q)
   );
 
   $('historyBody').innerHTML=list.map(p=>`
     <tr>
       <td>${fmtNum(p.num)}</td>
-      <td>${esc(p.cliente)}</td>
+      <td>${esc(p.cliente)}${p.box?`<br><small>Box ${esc(p.box)}</small>`:''}</td>
       <td>${esc(p.dept||'—')}</td>
       <td>${esc(p.emissor||'—')}</td>
       <td>${esc(p.resp||'—')}</td>
@@ -6579,7 +6644,8 @@ function aplicarDadosProtocolos(dados,proximoNumero=null){
     id:Number(p.id),
     num:Number(p.numero),
     cliente:p.cliente,
-  endereco:p.endereco_empresa||'',
+    box:p.cliente_box||'',
+    endereco:p.endereco_empresa||'',
     dept:p.departamento,
     desc:(Array.isArray(p.itens)&&p.itens.length?p.itens.map(x=>x.descricao).join(' · '):p.descricao),
     venc:(Array.isArray(p.itens)&&p.itens.length?p.itens[0].vencimento:p.vencimento),
@@ -6619,7 +6685,8 @@ function aplicarDadosProtocolos(dados,proximoNumero=null){
         id:Number(p.id),
         num:Number(p.numero),
         cliente:p.cliente,
-      endereco:p.endereco_empresa||'',
+        box:p.cliente_box||'',
+        endereco:p.endereco_empresa||'',
         dept:p.departamento,
         emissor:p.emissor,
         resp:p.entregador,

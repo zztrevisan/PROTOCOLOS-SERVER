@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v41-legalizacao-label';
+  'hiperion-protocolos-v42-global-box-search-companies';
 
 
 const APP_SHELL = [
