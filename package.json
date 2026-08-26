@@ -5,6 +5,11 @@
   "main": "server-turso.js",
   "scripts": {
     "start": "node server-turso.js",
+    "start:cloud": "node server-turso.js",
+    "start:internal": "node server.js",
+    "verify:internal": "node scripts/verificar-interno.js",
+    "backup:internal": "node scripts/backup-sqlite.js",
+    "migrate:turso-to-sqlite": "node scripts/migrar-turso-para-sqlite.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -7,10 +7,12 @@ const { DatabaseSync } = require('node:sqlite');
 // ========================================
 
 const bancoDir = path.join(__dirname);
-const bancoPath = path.join(
-  bancoDir,
-  'hiperion.db'
-);
+const caminhoConfigurado = String(process.env.SQLITE_DATABASE_PATH || '').trim();
+const bancoPath = caminhoConfigurado
+  ? path.resolve(__dirname, '..', caminhoConfigurado)
+  : path.join(bancoDir, 'hiperion.db');
+
+fs.mkdirSync(path.dirname(bancoPath), { recursive: true });
 
 if (!fs.existsSync(bancoDir)) {
   fs.mkdirSync(

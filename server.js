@@ -1,10 +1,31 @@
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
+
+try {
+  process.loadEnvFile('.env');
+} catch {
+  // Em produção, as variáveis podem ser fornecidas pelo serviço do sistema.
+}
+
 const db = require('./banco/db');
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || '127.0.0.1';
+
+if (process.env.TRUST_PROXY === '1') {
+  app.set('trust proxy', 1);
+}
+
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 // Assinaturas em base64 podem ultrapassar
 // o limite padrão do Express.
@@ -33,6 +54,7 @@ const COOKIE_SESSAO =
 
 const DURACAO_SESSAO =
   8 * 60 * 60 * 1000;
+const COOKIE_SECURE = process.env.NODE_ENV === 'production' ? '; Secure' : '';
 
 
 // ============================================================
@@ -495,7 +517,7 @@ app.post(
 
         `${COOKIE_SESSAO}=${encodeURIComponent(
           novaSessao.token
-        )}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAgeSegundos}`
+        )}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAgeSegundos}${COOKIE_SECURE}`
 
       );
 
@@ -621,7 +643,7 @@ app.post(
 
         'Set-Cookie',
 
-        `${COOKIE_SESSAO}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`
+        `${COOKIE_SESSAO}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${COOKIE_SECURE}`
 
       );
 
@@ -828,6 +850,20 @@ app.get(
 
   }
 );
+
+app.get('/health', (req, res) => {
+  try {
+    db.prepare('SELECT 1 AS ok').get();
+    res.set('Cache-Control', 'no-store').json({
+      ok: true,
+      servico: 'hiperion-protocolos-interno',
+      banco: 'sqlite',
+      uptime_segundos: Math.floor(process.uptime())
+    });
+  } catch (erro) {
+    res.status(503).json({ ok: false, erro: 'Banco indisponível.' });
+  }
+});
 
 // ============================================================
 // CLIENTES / EMPRESAS
@@ -3612,10 +3648,11 @@ app.delete(
 
 app.listen(
   PORT,
+  HOST,
   () => {
 
     console.log(
-      `Hiperion Protocolos rodando em http://localhost:${PORT}`
+      `Hiperion Protocolos rodando em http://${HOST}:${PORT}`
     );
 
   }
