@@ -3767,7 +3767,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
         <div><label>UF</label><input id="cUf" maxlength="2"></div>
         <div class="full"><label>Observação</label><textarea id="cObservacao" class="compact-textarea"></textarea></div>
       </div>
-      <div class="actions"><button class="primary secondary" type="button" onclick="limparFormularioEmpresa()">Novo/limpar</button><button class="primary" type="button" onclick="salvarEmpresa()">Salvar empresa</button></div>
+      <div class="actions"><button class="primary secondary" type="button" onclick="fecharEditorEmpresa()">Fechar</button><button class="primary" type="button" onclick="salvarEmpresa()">Salvar empresa</button></div>
     </div>
   </div>
 </section>
@@ -4429,7 +4429,7 @@ function applyPermissions(){
   });
   document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('hidden',!isAdmin()));
   canManageCompanies=isAdmin()||isLegalizacao();
-  $('companyEditor')?.classList.toggle('hidden',!canManageCompanies);
+  if(!canManageCompanies)$('companyEditor')?.classList.add('hidden');
   document.querySelectorAll('.company-manage-only').forEach(el=>el.classList.toggle('hidden',!canManageCompanies));
 
   $('nEmissor').value=u.name;
@@ -5102,7 +5102,7 @@ async function carregarEmpresas(){
     if(!resposta.ok)throw new Error(dados.erro||'Erro ao carregar empresas.');
     companies=Array.isArray(dados.clientes)?dados.clientes:[];
     canManageCompanies=Boolean(dados.pode_gerenciar);
-    $('companyEditor')?.classList.toggle('hidden',!canManageCompanies);
+    if(!canManageCompanies)$('companyEditor')?.classList.add('hidden');
     document.querySelectorAll('.company-manage-only').forEach(el=>el.classList.toggle('hidden',!canManageCompanies));
     atualizarOpcoesEmpresas();
     renderCompanies();
@@ -5208,6 +5208,11 @@ function abrirNovaEmpresa(){
   $('companyEditor')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+function fecharEditorEmpresa(){
+  limparFormularioEmpresa();
+  $('companyEditor')?.classList.add('hidden');
+}
+
 function limparFormularioEmpresa(){
   ['cId','cNome','cBox','cCep','cEndereco','cNumero','cComplemento','cBairro','cCidade','cUf','cObservacao'].forEach(id=>$(id).value='');
   $('companyEditorTitle').textContent='Cadastrar empresa';$('cNome').focus();
@@ -5216,7 +5221,7 @@ function limparFormularioEmpresa(){
 function editarEmpresa(id){
   const c=companies.find(x=>Number(x.id)===Number(id));if(!c)return;
 $('cId').value=c.id; $('cNome').value=c.nome||''; $('cBox').value=c.box||''; $('cCep').value=c.cep||''; $('cEndereco').value=c.endereco||''; $('cNumero').value=c.numero||''; $('cComplemento').value=c.complemento||''; $('cBairro').value=c.bairro||''; $('cCidade').value=c.cidade||''; $('cUf').value=c.uf||''; $('cObservacao').value=c.observacao||'';
-  $('companyEditorTitle').textContent='Editar empresa';$('companyEditor').scrollIntoView({behavior:'smooth',block:'start'});
+  $('companyEditorTitle').textContent='Editar empresa';$('companyEditor')?.classList.remove('hidden');$('companyEditor').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function salvarEmpresa(){
@@ -5225,7 +5230,7 @@ async function salvarEmpresa(){
   const resposta=await fetch(id?`/api/clientes/${id}`:'/api/clientes',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json','Cache-Control':'no-cache'},cache:'no-store',body:JSON.stringify(body)});const dados=await resposta.json();if(!resposta.ok)return alert(dados.erro||'Não foi possível salvar.');
   if(id&&!dados.cliente)return alert('O servidor não confirmou os dados salvos. Tente novamente.');
   if(dados.cliente){const indice=companies.findIndex(c=>Number(c.id)===Number(dados.cliente.id));if(indice>=0)companies[indice]=dados.cliente;}
-  alert('Empresa salva com sucesso.');limparFormularioEmpresa();await carregarEmpresas();
+  alert('Empresa salva com sucesso.');fecharEditorEmpresa();await carregarEmpresas();
 }
 
 async function alterarEmpresaAtiva(id,ativo){

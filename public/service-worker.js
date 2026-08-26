@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v42-global-box-search-companies';
+  'hiperion-protocolos-v43-collapsible-company-editor';
 
 
 const APP_SHELL = [
