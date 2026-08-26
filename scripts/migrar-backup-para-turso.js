@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 
-const raiz = __dirname;
+const raiz = path.resolve(__dirname, '..');
 const bancoAtivoPath = path.join(raiz, 'banco', 'hiperion.db');
 const backupPath = path.join(raiz, 'banco', 'hiperion-backup-20260824.db');
 

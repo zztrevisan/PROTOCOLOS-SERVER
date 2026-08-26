@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const db = require('./banco/db');
+const db = require('../banco/db');
 
 function perguntarSenha(texto) {
 

@@ -3938,7 +3938,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
         <b>Perfis:</b><br>
         Emissor → cria e acompanha solicitações.<br>
         Entregador → recebe as entregas atribuídas e coleta assinatura.<br>
-        Administrador geral → conta principal exclusiva, com usuários, exclusões e restauração.<br>
+        Administrador geral → acesso completo, com usuários, exclusões e restauração.<br>
         Legalização → administração operacional automática pelo departamento.
       </div>
     </div>
@@ -6835,7 +6835,7 @@ function mapearUsuariosServidor(dados){
   return dados.map(u=>{
     let roles=[];
 
-    if(u.perfil==='admin'&&String(u.usuario||'').trim().toLowerCase()==='admin')roles=['admin','entregador'];
+    if(u.perfil==='admin')roles=['admin','entregador'];
     else if(u.perfil==='entregador')roles=['entregador'];
     else roles=['emissor'];
 
@@ -6901,7 +6901,7 @@ async function carregarUsuariosDoServidor(){
 function converterUsuarioSessao(u){
   let roles=[];
 
-  if(u.perfil==='admin'&&String(u.usuario||'').trim().toLowerCase()==='admin'){
+  if(u.perfil==='admin'){
     roles=['admin','entregador'];
   }else if(u.perfil==='entregador'){
     roles=['entregador'];

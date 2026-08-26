@@ -1,5 +1,5 @@
 const readline = require('readline');
-const db = require('./banco/db');
+const db = require('../banco/db');
 
 // ============================================================
 // HIPERION PROTOCOLOS

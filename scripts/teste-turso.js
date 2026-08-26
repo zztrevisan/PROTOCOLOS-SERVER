@@ -1,3 +1,6 @@
+const path = require('path');
+const raiz = path.resolve(__dirname, '..');
+
 async function iniciar() {
 
   try {
@@ -8,7 +11,7 @@ async function iniciar() {
 
     try {
 
-      process.loadEnvFile('.env');
+      process.loadEnvFile(path.join(raiz, '.env'));
 
     } catch (erro) {
 

@@ -1,5 +1,7 @@
 const crypto = require('crypto');
+const path = require('path');
 const readline = require('readline');
+const raiz = path.resolve(__dirname, '..');
 
 
 // ============================================================
@@ -8,7 +10,7 @@ const readline = require('readline');
 
 try {
 
-  process.loadEnvFile('.env');
+  process.loadEnvFile(path.join(raiz, '.env'));
 
 } catch (erro) {
 
