@@ -3443,14 +3443,18 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
     <div class="modal-head"><div><div class="kicker">Economia de papel</div><h3 id="labelPrintTitle">Organizar etiquetas na folha A4</h3></div><button class="modal-close" type="button" onclick="fecharOpcoesEtiqueta()" aria-label="Fechar">×</button></div>
     <div class="modal-body">
       <input id="labelProtocolId" type="hidden">
-      <div class="label-sheet-options">
+      <div class="label-sheet-options" style="margin-bottom:14px">
+        <label>Onde imprimir<select id="labelPrintMode" onchange="atualizarModoImpressao()"><option value="a4">Folha A4 para recortar</option><option value="envelope">Direto no envelope</option></select></label>
+        <label id="envelopeSizeField" class="hidden">Tamanho do envelope<select id="envelopeSize" onchange="atualizarModoImpressao()"><option value="DL">DL — 220 × 110 mm</option><option value="C5">C5 — 229 × 162 mm</option><option value="B5">B5 — 250 × 176 mm</option><option value="N10">Nº 10 — 241 × 105 mm</option><option value="MONARCH">Monarch — 191 × 98 mm</option></select></label>
+      </div>
+      <div id="a4PrintOptions" class="label-sheet-options">
         <label>Quantidade de etiquetas<select id="labelCopies" onchange="atualizarPreviewFolhaEtiquetas()"></select></label>
         <label>Começar na posição<select id="labelStart" onchange="atualizarOpcoesFolhaEtiquetas()"></select></label>
       </div>
       <div id="labelSheetPreview" class="label-sheet-preview" aria-label="Prévia da folha A4"></div>
-      <p class="label-sheet-help">Escolha a primeira posição livre de uma folha já usada. A impressão segue da esquerda para a direita, de cima para baixo.</p>
+      <p id="labelPrintHelp" class="label-sheet-help">Escolha a primeira posição livre de uma folha já usada. A impressão segue da esquerda para a direita, de cima para baixo.</p>
     </div>
-    <div class="modal-actions"><button class="primary secondary" type="button" onclick="fecharOpcoesEtiqueta()">Cancelar</button><button class="primary" type="button" onclick="confirmarImpressaoEtiqueta()">Imprimir folha A4</button></div>
+    <div class="modal-actions"><button class="primary secondary" type="button" onclick="fecharOpcoesEtiqueta()">Cancelar</button><button id="labelPrintConfirm" class="primary" type="button" onclick="confirmarImpressaoEtiqueta()">Imprimir folha A4</button></div>
   </div>
 </div>
 
@@ -5516,9 +5520,21 @@ function abrirOpcoesEtiqueta(ids){
   $('labelProtocolId').value=protocolosParaImprimir.join(',');
   $('labelStart').innerHTML=Array.from({length:8},(_,i)=>`<option value="${i+1}">${i+1} — ${i===0?'canto superior esquerdo':i===1?'canto superior direito':`linha ${Math.floor(i/2)+1}, ${i%2?'direita':'esquerda'}`}</option>`).join('');
   $('labelStart').value='1';
+  $('labelPrintMode').value='a4';
   atualizarOpcoesFolhaEtiquetas();
+  atualizarModoImpressao();
   $('labelPrintModal').classList.remove('hidden');
   $('labelPrintModal').setAttribute('aria-hidden','false');
+}
+
+function atualizarModoImpressao(){
+  const envelope=$('labelPrintMode').value==='envelope';
+  $('envelopeSizeField').classList.toggle('hidden',!envelope);
+  $('a4PrintOptions').classList.toggle('hidden',envelope);
+  $('labelSheetPreview').classList.toggle('hidden',envelope);
+  $('labelPrintTitle').textContent=envelope?'Imprimir direto no envelope':'Organizar etiquetas na folha A4';
+  $('labelPrintConfirm').textContent=envelope?'Imprimir no envelope':'Imprimir folha A4';
+  $('labelPrintHelp').textContent=envelope?'Use somente a Bandeja 1. No painel de impressão, confirme o mesmo tamanho de envelope e desative frente e verso.':'Escolha a primeira posição livre de uma folha já usada. A impressão segue da esquerda para a direita, de cima para baixo.';
 }
 
 function fecharOpcoesEtiqueta(){
@@ -5555,17 +5571,19 @@ async function confirmarImpressaoEtiqueta(){
   const impressaoEmLote=protocolosParaImprimir.length>1;
   const copias=Number($('labelCopies').value)||1;
   const inicio=Number($('labelStart').value)||1;
+  const modo=$('labelPrintMode').value;
+  const tamanhoEnvelope=$('envelopeSize').value;
   fecharOpcoesEtiqueta();
-  const ids=protocolosParaImprimir.length===1?Array.from({length:copias},()=>protocolosParaImprimir[0]):protocolosParaImprimir;
-  await imprimirEtiquetasProtocolos(ids,inicio);
+  const ids=modo==='envelope'?protocolosParaImprimir:(protocolosParaImprimir.length===1?Array.from({length:copias},()=>protocolosParaImprimir[0]):protocolosParaImprimir);
+  await imprimirEtiquetasProtocolos(ids,inicio,{modo,tamanhoEnvelope});
   if(impressaoEmLote){etiquetasSelecionadas.clear();renderRequests()}
 }
 
 async function imprimirEtiquetaProtocolo(id,copias=1,posicaoInicial=1){
-  await imprimirEtiquetasProtocolos(Array.from({length:copias},()=>Number(id)),posicaoInicial);
+  await imprimirEtiquetasProtocolos(Array.from({length:copias},()=>Number(id)),posicaoInicial,{modo:'a4'});
 }
 
-async function imprimirEtiquetasProtocolos(ids,posicaoInicial=1){
+async function imprimirEtiquetasProtocolos(ids,posicaoInicial=1,opcoes={}){
   const janela=window.open('','_blank','width=720,height=620');
   if(!janela){
     alert('Permita pop-ups do Hiperion para imprimir a etiqueta.');
@@ -5580,6 +5598,20 @@ async function imprimirEtiquetasProtocolos(ids,posicaoInicial=1){
       return etiqueta;
     }));
     const logo=document.querySelector('.plogo img')?.src||'';
+    if(opcoes.modo==='envelope'){
+      const tamanhos={DL:[220,110],C5:[229,162],B5:[250,176],N10:[241,105],MONARCH:[191,98]};
+      const tamanho=tamanhos[opcoes.tamanhoEnvelope]||tamanhos.DL;
+      const paginas=dados.map(item=>{
+        const documentos=(item.itens||[]).map(documento=>`<li>${esc(documento.descricao)}</li>`).join('');
+        return `<main class="envelope"><section><div class="brand">${logo?`<img src="${logo}">`:''}<div><strong>HIPERION</strong><div class="number">PROTOCOLO ${fmtNum(item.numero)}</div></div></div><div class="company">${esc(item.cliente)}</div><div class="docs-title">DOCUMENTOS</div><ul class="docs">${documentos}</ul></section><aside class="qr"><img src="${item.qr_data_url}"><small>Conferência da entrega</small></aside></main>`;
+      }).join('');
+      janela.document.open();
+      janela.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Protocolos em envelopes</title><style>
+        @page{size:${tamanho[0]}mm ${tamanho[1]}mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:#10243f}.envelope{width:${tamanho[0]}mm;height:${tamanho[1]}mm;padding:10mm 12mm;display:grid;grid-template-columns:1fr 38mm;gap:8mm;align-items:center;break-after:page;overflow:hidden}.envelope:last-child{break-after:auto}.brand{display:flex;align-items:center;gap:4mm;border-bottom:1px solid #b9c5d0;padding-bottom:3mm}.brand img{width:24mm;height:16mm;object-fit:contain}.brand strong{font-size:15px;letter-spacing:.08em}.number{font-size:11px;color:#567;margin-top:1mm}.company{font-size:19px;font-weight:800;margin:5mm 0 3mm}.docs-title{font-size:8px;font-weight:800;letter-spacing:.12em;color:#627386}.docs{font-size:11px;margin:2mm 0 0;padding-left:5mm;line-height:1.4}.qr{display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid #cbd4dc;padding-left:6mm}.qr img{width:34mm;height:34mm}.qr small{font-size:8px;text-align:center;margin-top:2mm}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+      </style></head><body>${paginas}<script>addEventListener('load',()=>setTimeout(()=>print(),250));<\/script></body></html>`);
+      janela.document.close();
+      return;
+    }
     const inicio=Math.max(1,Math.min(8,Number(posicaoInicial)||1));
     const blocos=dados.map(item=>{
       const documentos=(item.itens||[]).map(documento=>`<li>${esc(documento.descricao)}</li>`).join('');
