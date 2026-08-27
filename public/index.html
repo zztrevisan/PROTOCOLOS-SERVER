@@ -5790,7 +5790,9 @@ function renderRequests(){
   if(!$('requestList'))return;
   const q=$('reqSearch')?.value||'';
   const st=$('reqStatus')?.value||'';
-  const list=visibleRequestsForUser().filter(r=>{
+  const buscaGlobalPorNumero=/^#?\d+$/.test(q.trim());
+  const base=buscaGlobalPorNumero?requests:visibleRequestsForUser();
+  const list=base.filter(r=>{
     return (!st||r.status===st)&&protocolMatchesSearch(r,q);
   });
 

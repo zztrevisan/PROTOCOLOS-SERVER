@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v62-company-delete';
+  'hiperion-protocolos-v63-global-number-search';
 
 
 const APP_SHELL = [
