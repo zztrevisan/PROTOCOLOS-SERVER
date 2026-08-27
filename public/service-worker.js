@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v65-hide-delivered-label-action';
+  'hiperion-protocolos-v66-brand-typeface';
 
 
 const APP_SHELL = [
