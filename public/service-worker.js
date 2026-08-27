@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v58-envelope-readable';
+  'hiperion-protocolos-v59-envelope-clean';
 
 
 const APP_SHELL = [
