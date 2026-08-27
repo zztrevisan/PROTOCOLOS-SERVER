@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v68-admin-example-only';
+  'hiperion-protocolos-v69-local-html-sync';
 
 
 const APP_SHELL = [
