@@ -3866,7 +3866,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
         <div class="full"><label>E-mails para comprovantes</label><textarea id="cEmails" class="compact-textarea" placeholder="Um e-mail por linha"></textarea><small>Você poderá confirmar os destinatários em cada entrega.</small></div>
         <div class="full"><label>Observação</label><textarea id="cObservacao" class="compact-textarea"></textarea></div>
       </div>
-      <div class="actions"><button class="primary secondary" type="button" onclick="fecharEditorEmpresa()">Fechar</button><button class="primary" type="button" onclick="salvarEmpresa()">Salvar empresa</button></div>
+      <div class="actions"><button id="cExcluir" class="primary danger hidden" type="button" onclick="excluirEmpresaPermanente()">Excluir empresa</button><button class="primary secondary" type="button" onclick="fecharEditorEmpresa()">Fechar</button><button class="primary" type="button" onclick="salvarEmpresa()">Salvar empresa</button></div>
     </div>
   </div>
 </section>
@@ -5356,13 +5356,14 @@ function fecharEditorEmpresa(){
 function limparFormularioEmpresa(){
   ['cId','cNome','cBox','cCep','cEndereco','cNumero','cComplemento','cBairro','cCidade','cUf','cEmails','cObservacao'].forEach(id=>$(id).value='');
   $('cAtivo').value='1';
+  $('cExcluir')?.classList.add('hidden');
   $('companyEditorTitle').textContent='Cadastrar empresa';$('cNome').focus();
 }
 
 function editarEmpresa(id){
   const c=companies.find(x=>Number(x.id)===Number(id));if(!c)return;
  $('cId').value=c.id; $('cNome').value=c.nome||''; $('cBox').value=c.box||''; $('cAtivo').value=Number(c.ativo)===0?'0':'1'; $('cCep').value=c.cep||''; $('cEndereco').value=c.endereco||''; $('cNumero').value=c.numero||''; $('cComplemento').value=c.complemento||''; $('cBairro').value=c.bairro||''; $('cCidade').value=c.cidade||''; $('cUf').value=c.uf||''; $('cEmails').value=(c.emails||[]).join('\n'); $('cObservacao').value=c.observacao||'';
-  $('companyEditorTitle').textContent='Editar empresa';$('companyEditor')?.classList.remove('hidden');$('companyEditor').scrollIntoView({behavior:'smooth',block:'start'});
+  $('companyEditorTitle').textContent='Editar empresa';$('cExcluir')?.classList.remove('hidden');$('companyEditor')?.classList.remove('hidden');$('companyEditor').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function salvarEmpresa(){
@@ -5512,6 +5513,22 @@ function loadExample(){
   {descricao:'Documentação complementar',competencia:null,vencimento:null}
   ];
   renderNewProtocolItems();
+}
+
+async function excluirEmpresaPermanente(){
+  if(!canManageCompanies)return alert('Somente Legalização e administradores podem excluir empresas.');
+  const id=Number($('cId').value);
+  const nome=$('cNome').value.trim();
+  if(!id||!nome)return;
+  const digitado=await hiperionPrompt({title:'Excluir empresa permanentemente',message:`Esta ação removerá o cadastro “${nome}”. Protocolos históricos serão preservados. Para confirmar, digite o nome exato da empresa.`,inputLabel:'Nome da empresa',confirmText:'Excluir permanentemente',cancelText:'Cancelar',type:'danger'});
+  if(digitado===null)return;
+  if(digitado.trim()!==nome)return alert('O nome digitado não corresponde. A empresa não foi excluída.');
+  const resposta=await fetch(`/api/clientes/${id}`,{method:'DELETE',headers:{'Content-Type':'application/json','Cache-Control':'no-cache'},cache:'no-store'});
+  const dados=await resposta.json();
+  if(!resposta.ok)return alert(dados.erro||'Não foi possível excluir a empresa.');
+  fecharEditorEmpresa();
+  await carregarEmpresas();
+  alert(dados.protocolos_preservados?`Empresa excluída. ${dados.protocolos_preservados} protocolo(s) histórico(s) foram preservados.`:'Empresa excluída permanentemente.');
 }
 let protocolosParaImprimir=[];
 

@@ -1628,6 +1628,32 @@ app.patch('/api/clientes/:id/ativo', exigirGerenciaDeClientes, async (req, res) 
   }
 });
 
+app.delete('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
+  try {
+    const database = await garantirDb();
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ erro: 'Cadastro inválido.' });
+    const existente = await sqlGet(database, 'SELECT id, nome FROM clientes WHERE id = ?', [id]);
+    if (!existente) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+    const protocolosVinculados = await sqlAll(database, 'SELECT id FROM protocolos WHERE cliente_id = ?', [id]);
+    const protocolosPreservados = protocolosVinculados.length;
+    try {
+      await sqlRun(database, 'UPDATE protocolos SET cliente_id = NULL WHERE cliente_id = ?', [id]);
+      const resultado = await sqlRun(database, 'DELETE FROM clientes WHERE id = ?', [id]);
+      if (Number(resultado?.changes || 0) !== 1) throw new Error('A exclusão da empresa não foi confirmada pelo banco.');
+    } catch (erroExclusao) {
+      for (const protocolo of protocolosVinculados) {
+        await sqlRun(database, 'UPDATE protocolos SET cliente_id = ? WHERE id = ? AND cliente_id IS NULL', [id, protocolo.id]);
+      }
+      throw erroExclusao;
+    }
+    res.json({ ok: true, protocolos_preservados: protocolosPreservados });
+  } catch (erro) {
+    console.error('Erro ao excluir cliente:', erro);
+    res.status(500).json({ erro: 'Erro ao excluir empresa.' });
+  }
+});
+
 
 // ============================================================
 // LISTAR USUÁRIOS

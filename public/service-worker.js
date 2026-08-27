@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v61-envelope-reference';
+  'hiperion-protocolos-v62-company-delete';
 
 
 const APP_SHELL = [

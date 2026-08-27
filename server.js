@@ -1006,6 +1006,28 @@ app.patch('/api/clientes/:id/ativo', exigirGerenciaDeClientes, (req, res) => {
   }
 });
 
+app.delete('/api/clientes/:id', exigirGerenciaDeClientes, (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ erro: 'Cadastro inválido.' });
+    const excluir = db.transaction(() => {
+      const existente = db.prepare('SELECT id FROM clientes WHERE id = ?').get(id);
+      if (!existente) return null;
+      const protocolosPreservados = Number(db.prepare('SELECT COUNT(*) AS total FROM protocolos WHERE cliente_id = ?').get(id)?.total || 0);
+      db.prepare('UPDATE protocolos SET cliente_id = NULL WHERE cliente_id = ?').run(id);
+      const resultado = db.prepare('DELETE FROM clientes WHERE id = ?').run(id);
+      if (Number(resultado.changes) !== 1) throw new Error('A exclusão da empresa não foi confirmada pelo banco.');
+      return protocolosPreservados;
+    });
+    const protocolosPreservados = excluir();
+    if (protocolosPreservados === null) return res.status(404).json({ erro: 'Empresa não encontrada.' });
+    res.json({ ok: true, protocolos_preservados: protocolosPreservados });
+  } catch (erro) {
+    console.error('Erro ao excluir cliente:', erro);
+    res.status(500).json({ erro: 'Erro ao excluir empresa.' });
+  }
+});
+
 
 // ============================================================
 // USUÁRIOS
