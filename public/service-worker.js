@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v56-envelope-brand';
+  'hiperion-protocolos-v57-envelope-layout';
 
 
 const APP_SHELL = [
