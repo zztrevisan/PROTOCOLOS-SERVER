@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v54-envelope-print';
+  'hiperion-protocolos-v55-label-due-date';
 
 
 const APP_SHELL = [
