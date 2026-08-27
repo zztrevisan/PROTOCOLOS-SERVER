@@ -1248,7 +1248,11 @@ label{font-size:11.5px;color:#344054;margin-bottom:6px}
   background:#f1f4f7!important;
   color:#344054!important;
   border:1px solid #e0e6ed!important;
+  opacity:1!important;
+  box-shadow:none!important;
 }
+.hip-dialog-cancel:hover{background:#e7ecf1!important;color:#1d2939!important}
+.hip-dialog-cancel:disabled{background:#f1f4f7!important;color:#667085!important;opacity:1!important}
 .hip-dialog-confirm.danger{
   background:#a61b1b!important;
   color:#fff!important;
@@ -1295,6 +1299,14 @@ label{font-size:11.5px;color:#344054;margin-bottom:6px}
 .qr-reader-card{width:min(520px,100%)}
 .qr-reader-video{display:block;width:100%;max-height:58vh;aspect-ratio:1/1;object-fit:cover;background:#071936;border-radius:12px}
 .qr-reader-guide{margin-top:10px;color:#667085;font-size:12px;line-height:1.5;text-align:center}
+.label-sheet-card{width:min(560px,100%)}
+.label-sheet-options{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.label-sheet-preview{width:min(260px,100%);aspect-ratio:210/297;margin:18px auto 4px;padding:12px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,1fr);gap:6px;background:#fff;border:1px solid #cad5df;box-shadow:0 8px 24px rgba(16,36,63,.08)}
+.label-sheet-slot{display:grid;place-items:center;border:1px dashed #b6c2ce;border-radius:5px;color:#98a2b3;font-size:10px;font-weight:800}
+.label-sheet-slot.used{border-style:solid;border-color:#0b7895;background:#eaf7f7;color:#075f75}
+.label-sheet-slot.skipped{background:#f4f6f8;color:#c0c7d0}
+.label-sheet-help{margin:8px 0 0;color:#667085;font-size:12px;line-height:1.45;text-align:center}
+@media(max-width:520px){.label-sheet-options{grid-template-columns:1fr}}
 @media(max-width:620px){
   .hip-dialog-backdrop{
     align-items:flex-end;
@@ -3420,6 +3432,22 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   </div>
 </div>
 
+<div id="labelPrintModal" class="hiperion-modal hidden" aria-hidden="true" onclick="fecharModalNoFundo(event,'labelPrintModal')">
+  <div class="modal-card label-sheet-card" role="dialog" aria-modal="true" aria-labelledby="labelPrintTitle">
+    <div class="modal-head"><div><div class="kicker">Economia de papel</div><h3 id="labelPrintTitle">Organizar etiquetas na folha A4</h3></div><button class="modal-close" type="button" onclick="fecharOpcoesEtiqueta()" aria-label="Fechar">×</button></div>
+    <div class="modal-body">
+      <input id="labelProtocolId" type="hidden">
+      <div class="label-sheet-options">
+        <label>Quantidade de etiquetas<select id="labelCopies" onchange="atualizarPreviewFolhaEtiquetas()"></select></label>
+        <label>Começar na posição<select id="labelStart" onchange="atualizarOpcoesFolhaEtiquetas()"></select></label>
+      </div>
+      <div id="labelSheetPreview" class="label-sheet-preview" aria-label="Prévia da folha A4"></div>
+      <p class="label-sheet-help">Escolha a primeira posição livre de uma folha já usada. A impressão segue da esquerda para a direita, de cima para baixo.</p>
+    </div>
+    <div class="modal-actions"><button class="primary secondary" type="button" onclick="fecharOpcoesEtiqueta()">Cancelar</button><button class="primary" type="button" onclick="confirmarImpressaoEtiqueta()">Imprimir folha A4</button></div>
+  </div>
+</div>
+
 
 <div id="loginScreen" class="login-screen">
   <div class="login-shell">
@@ -4124,6 +4152,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   </div>
 </div>
 
+<script src="/vendor/qr-scanner.umd.min.js"></script>
 <script src="offline.js">
 document.addEventListener('DOMContentLoaded',()=>{renderNewProtocolItems();});
 </script>
@@ -5470,8 +5499,49 @@ function loadExample(){
   ];
   renderNewProtocolItems();
 }
+function abrirOpcoesEtiqueta(id){
+  $('labelProtocolId').value=Number(id);
+  $('labelStart').innerHTML=Array.from({length:8},(_,i)=>`<option value="${i+1}">${i+1} — ${i===0?'canto superior esquerdo':i===1?'canto superior direito':`linha ${Math.floor(i/2)+1}, ${i%2?'direita':'esquerda'}`}</option>`).join('');
+  $('labelStart').value='1';
+  atualizarOpcoesFolhaEtiquetas();
+  $('labelPrintModal').classList.remove('hidden');
+  $('labelPrintModal').setAttribute('aria-hidden','false');
+}
 
-async function imprimirEtiquetaProtocolo(id){
+function fecharOpcoesEtiqueta(){
+  $('labelPrintModal').classList.add('hidden');
+  $('labelPrintModal').setAttribute('aria-hidden','true');
+}
+
+function atualizarOpcoesFolhaEtiquetas(){
+  const inicio=Math.max(1,Math.min(8,Number($('labelStart').value)||1));
+  const anterior=Math.max(1,Number($('labelCopies').value)||1);
+  const maximo=9-inicio;
+  $('labelCopies').innerHTML=Array.from({length:maximo},(_,i)=>`<option value="${i+1}">${i+1}${i?' cópias':' cópia'}</option>`).join('');
+  $('labelCopies').value=String(Math.min(anterior,maximo));
+  atualizarPreviewFolhaEtiquetas();
+}
+
+function atualizarPreviewFolhaEtiquetas(){
+  const inicio=Number($('labelStart').value)||1;
+  const copias=Number($('labelCopies').value)||1;
+  $('labelSheetPreview').innerHTML=Array.from({length:8},(_,i)=>{
+    const pos=i+1;
+    const classe=pos<inicio?'skipped':pos<inicio+copias?'used':'';
+    const texto=classe==='used'?'ETIQUETA':classe==='skipped'?'já usada':pos;
+    return `<div class="label-sheet-slot ${classe}">${texto}</div>`;
+  }).join('');
+}
+
+async function confirmarImpressaoEtiqueta(){
+  const id=Number($('labelProtocolId').value);
+  const copias=Number($('labelCopies').value)||1;
+  const inicio=Number($('labelStart').value)||1;
+  fecharOpcoesEtiqueta();
+  await imprimirEtiquetaProtocolo(id,copias,inicio);
+}
+
+async function imprimirEtiquetaProtocolo(id,copias=1,posicaoInicial=1){
   const janela=window.open('','_blank','width=720,height=620');
   if(!janela){
     alert('Permita pop-ups do Hiperion para imprimir a etiqueta.');
@@ -5484,10 +5554,15 @@ async function imprimirEtiquetaProtocolo(id){
     if(!resposta.ok)throw new Error(dados.erro||'Não foi possível gerar a etiqueta.');
     const logo=document.querySelector('.plogo img')?.src||'';
     const documentos=(dados.itens||[]).map(item=>`<li>${esc(item.descricao)}</li>`).join('');
+    const inicio=Math.max(1,Math.min(8,Number(posicaoInicial)||1));
+    const quantidade=Math.max(1,Math.min(9-inicio,Number(copias)||1));
+    const etiqueta=`<div class="label"><div><div class="brand">${logo?`<img src="${logo}">`:''}<div><strong>HIPERION</strong><div class="number">PROTOCOLO ${fmtNum(dados.numero)}</div></div></div><div class="company">${esc(dados.cliente)}</div><ul class="docs">${documentos}</ul></div><div class="qr"><img src="${dados.qr_data_url}"><small>Conferência da entrega</small></div></div>`;
+    const espacos=Array.from({length:inicio-1},()=>'<div class="slot empty"></div>').join('');
+    const etiquetas=Array.from({length:quantidade},()=>`<div class="slot">${etiqueta}</div>`).join('');
     janela.document.open();
     janela.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Etiqueta ${fmtNum(dados.numero)}</title><style>
-      @page{size:100mm 60mm;margin:3mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;color:#10243f}.label{width:94mm;height:54mm;border:1px solid #9ba9b7;border-radius:3mm;padding:4mm;display:grid;grid-template-columns:1fr 28mm;gap:3mm;overflow:hidden}.brand{display:flex;align-items:center;gap:3mm;border-bottom:1px solid #dce3e9;padding-bottom:2mm}.brand img{width:18mm;height:12mm;object-fit:contain}.brand strong{font-size:12px;letter-spacing:.06em}.number{font-size:10px;color:#567}.company{font-size:15px;font-weight:800;margin:2.5mm 0 1.5mm}.docs{font-size:9px;margin:0;padding-left:4mm;line-height:1.35}.qr{display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid #dce3e9;padding-left:3mm}.qr img{width:25mm;height:25mm}.qr small{font-size:7px;text-align:center;margin-top:1mm}@media print{.label{border-color:#777}}
-    </style></head><body><div class="label"><div><div class="brand">${logo?`<img src="${logo}">`:''}<div><strong>HIPERION</strong><div class="number">PROTOCOLO ${fmtNum(dados.numero)}</div></div></div><div class="company">${esc(dados.cliente)}</div><ul class="docs">${documentos}</ul></div><div class="qr"><img src="${dados.qr_data_url}"><small>Conferência da entrega</small></div></div><script>addEventListener('load',()=>setTimeout(()=>print(),180));<\/script></body></html>`);
+      @page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:#10243f}.sheet{width:190mm;display:grid;grid-template-columns:92mm 92mm;grid-auto-rows:62mm;column-gap:6mm;row-gap:5mm;align-content:start}.slot{width:92mm;height:62mm;display:flex;align-items:flex-start;justify-content:flex-start}.slot.empty{visibility:hidden}.label{width:92mm;height:60mm;border:1px solid #9ba9b7;border-radius:3mm;padding:4mm;display:grid;grid-template-columns:1fr 27mm;gap:3mm;overflow:hidden;break-inside:avoid}.brand{display:flex;align-items:center;gap:3mm;border-bottom:1px solid #dce3e9;padding-bottom:2mm}.brand img{width:18mm;height:12mm;object-fit:contain}.brand strong{font-size:12px;letter-spacing:.06em}.number{font-size:10px;color:#567}.company{font-size:15px;font-weight:800;margin:2.5mm 0 1.5mm}.docs{font-size:9px;margin:0;padding-left:4mm;line-height:1.35}.qr{display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid #dce3e9;padding-left:3mm}.qr img{width:24mm;height:24mm}.qr small{font-size:7px;text-align:center;margin-top:1mm}@media print{.label{border-color:#777}}
+    </style></head><body><main class="sheet">${espacos}${etiquetas}</main><script>addEventListener('load',()=>setTimeout(()=>print(),220));<\/script></body></html>`);
     janela.document.close();
   }catch(erro){
     janela.document.body.innerHTML=`<p style="font-family:Arial;padding:24px;color:#a61b1b">${esc(erro.message)}</p>`;
@@ -5555,7 +5630,7 @@ async function createRequest(){
       cancelText:'Agora não',
       type:'success'
     });
-    if(imprimir)await imprimirEtiquetaProtocolo(dados.id);
+    if(imprimir)abrirOpcoesEtiqueta(dados.id);
 
     $('nCliente').value='';
     $('nClienteId').value='';
@@ -5631,7 +5706,7 @@ function renderRequests(){
         </div>
         <div class="statusline">
           ${statusBadge(r.status)}
-          <button class="primary secondary smallbtn" onclick="imprimirEtiquetaProtocolo(${r.id})">Etiqueta</button>
+          <button class="primary secondary smallbtn" onclick="abrirOpcoesEtiqueta(${r.id})">Etiqueta</button>
           ${podeAbrir?`<button class="primary smallbtn" onclick="openDelivery(${r.id})">Abrir entrega</button>`:''}
           ${podeCancelar?`<button class="primary warning smallbtn" onclick="cancelProtocolById(${r.id})">Cancelar</button>`:''}
           ${isAdmin()?`<button class="primary danger smallbtn" onclick="deleteProtocol(${r.id})">Excluir</button>`:''}
@@ -6035,11 +6110,14 @@ function clearSign(){
 let qrReaderStream=null;
 let qrReaderResolve=null;
 let qrReaderAtivo=false;
+let qrScannerInstance=null;
 
 function encerrarLeituraQr(valor=null){
   qrReaderAtivo=false;
   qrReaderStream?.getTracks().forEach(track=>track.stop());
   qrReaderStream=null;
+  qrScannerInstance?.destroy();
+  qrScannerInstance=null;
   $('qrReaderVideo')?.pause();
   $('qrReaderModal')?.classList.add('hidden');
   $('qrReaderModal')?.setAttribute('aria-hidden','true');
@@ -6051,36 +6129,24 @@ function encerrarLeituraQr(valor=null){
 function cancelarLeituraQr(){encerrarLeituraQr(null)}
 
 async function lerQrDaEtiqueta(){
-  if(!('BarcodeDetector' in window)){
-    alert('Este navegador não oferece leitura de QR Code. Use o Chrome atualizado em um aparelho com câmera.');
-    return null;
-  }
-  const formatos=await BarcodeDetector.getSupportedFormats().catch(()=>[]);
-  if(!formatos.includes('qr_code')){
-    alert('A leitura de QR Code não está disponível neste aparelho.');
+  if(typeof QrScanner==='undefined'){
+    alert('O leitor de QR Code não foi carregado. Atualize a página e tente novamente.');
     return null;
   }
   return new Promise(async resolve=>{
     qrReaderResolve=resolve;
     try{
-      qrReaderStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
       const video=$('qrReaderVideo');
-      video.srcObject=qrReaderStream;
-      await video.play();
       $('qrReaderModal').classList.remove('hidden');
       $('qrReaderModal').setAttribute('aria-hidden','false');
       qrReaderAtivo=true;
-      const detector=new BarcodeDetector({formats:['qr_code']});
-      const analisar=async()=>{
-        if(!qrReaderAtivo)return;
-        try{
-          const codigos=await detector.detect(video);
-          const valor=codigos.find(item=>item.rawValue)?.rawValue;
-          if(valor){encerrarLeituraQr(valor);return;}
-        }catch(_){ }
-        if(qrReaderAtivo)setTimeout(analisar,180);
-      };
-      analisar();
+      QrScanner.WORKER_PATH='/vendor/qr-scanner-worker.min.js';
+      qrScannerInstance=new QrScanner(
+        video,
+        resultado=>encerrarLeituraQr(resultado?.data||resultado),
+        {preferredCamera:'environment',highlightScanRegion:true,highlightCodeOutline:true,maxScansPerSecond:8,returnDetailedScanResult:true}
+      );
+      await qrScannerInstance.start();
     }catch(erro){
       console.error('Erro ao abrir câmera:',erro);
       encerrarLeituraQr(null);

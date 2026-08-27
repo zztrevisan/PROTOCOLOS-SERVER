@@ -4,13 +4,15 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v51-label-qr-email';
+  'hiperion-protocolos-v52-a4-qr-ios';
 
 
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/offline.js'
+  '/offline.js',
+  '/vendor/qr-scanner.umd.min.js',
+  '/vendor/qr-scanner-worker.min.js'
 ];
 
 
