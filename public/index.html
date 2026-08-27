@@ -3780,7 +3780,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
       <div class="form-footer-v17">
         <div id="newProtocolSummary" class="form-summary-v17">Nenhum item adicionado.</div>
         <div class="actions v17-actions">
-          <button class="primary secondary" type="button" onclick="loadExample()">Preencher exemplo</button>
+          <button class="primary secondary admin-only" type="button" onclick="loadExample()">Preencher exemplo</button>
           <button class="primary" type="button" onclick="createRequest()">Gerar protocolo</button>
         </div>
       </div>
@@ -5560,6 +5560,7 @@ function renderProtocolItems(items){
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.activeElement?.id==='nItemDesc'){e.preventDefault();addProtocolItem();}});
 
 function loadExample(){
+  if(!isAdmin())return;
   $('nCliente').value='RISCAZERA';
   preencherEmpresaSelecionada();
   $('nObs').value='Entregar ao responsável financeiro.';
