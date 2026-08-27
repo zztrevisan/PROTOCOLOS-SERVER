@@ -601,7 +601,13 @@ async function sincronizarFila(){
                     item.assinatura,
 
                   entregue_em_local:
-                    item.entregue_em_local
+                    item.entregue_em_local,
+
+                  qr_codigo:
+                    item.qr_codigo,
+
+                  email_destinatarios:
+                    item.email_destinatarios
 
                 })
               }

@@ -1292,6 +1292,9 @@ label{font-size:11.5px;color:#344054;margin-bottom:6px}
   outline-offset:4px;
   border-radius:8px;
 }
+.qr-reader-card{width:min(520px,100%)}
+.qr-reader-video{display:block;width:100%;max-height:58vh;aspect-ratio:1/1;object-fit:cover;background:#071936;border-radius:12px}
+.qr-reader-guide{margin-top:10px;color:#667085;font-size:12px;line-height:1.5;text-align:center}
 @media(max-width:620px){
   .hip-dialog-backdrop{
     align-items:flex-end;
@@ -3409,6 +3412,14 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
 
 <div id="hiperionToastArea" class="hiperion-toast-area" aria-live="polite" aria-atomic="false"></div>
 
+<div id="qrReaderModal" class="hiperion-modal hidden" aria-hidden="true">
+  <div class="modal-card qr-reader-card" role="dialog" aria-modal="true" aria-labelledby="qrReaderTitle">
+    <div class="modal-head"><div><div class="kicker">Conferência final</div><h3 id="qrReaderTitle">Escanear etiqueta do envelope</h3></div><button class="modal-close" type="button" onclick="cancelarLeituraQr()" aria-label="Cancelar leitura">×</button></div>
+    <div class="modal-body"><video id="qrReaderVideo" class="qr-reader-video" playsinline muted></video><p id="qrReaderStatus" class="qr-reader-guide">Aponte a câmera para o QR Code da etiqueta.</p></div>
+    <div class="modal-actions"><button class="primary secondary" type="button" onclick="cancelarLeituraQr()">Cancelar</button></div>
+  </div>
+</div>
+
 
 <div id="loginScreen" class="login-screen">
   <div class="login-shell">
@@ -3810,6 +3821,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
         <div><label>Bairro</label><input id="cBairro"></div>
         <div><label>Cidade</label><input id="cCidade"></div>
         <div><label>UF</label><input id="cUf" maxlength="2"></div>
+        <div class="full"><label>E-mails para comprovantes</label><textarea id="cEmails" class="compact-textarea" placeholder="Um e-mail por linha"></textarea><small>Você poderá confirmar os destinatários em cada entrega.</small></div>
         <div class="full"><label>Observação</label><textarea id="cObservacao" class="compact-textarea"></textarea></div>
       </div>
       <div class="actions"><button class="primary secondary" type="button" onclick="fecharEditorEmpresa()">Fechar</button><button class="primary" type="button" onclick="salvarEmpresa()">Salvar empresa</button></div>
@@ -5299,20 +5311,20 @@ function fecharEditorEmpresa(){
 }
 
 function limparFormularioEmpresa(){
-  ['cId','cNome','cBox','cCep','cEndereco','cNumero','cComplemento','cBairro','cCidade','cUf','cObservacao'].forEach(id=>$(id).value='');
+  ['cId','cNome','cBox','cCep','cEndereco','cNumero','cComplemento','cBairro','cCidade','cUf','cEmails','cObservacao'].forEach(id=>$(id).value='');
   $('cAtivo').value='1';
   $('companyEditorTitle').textContent='Cadastrar empresa';$('cNome').focus();
 }
 
 function editarEmpresa(id){
   const c=companies.find(x=>Number(x.id)===Number(id));if(!c)return;
- $('cId').value=c.id; $('cNome').value=c.nome||''; $('cBox').value=c.box||''; $('cAtivo').value=Number(c.ativo)===0?'0':'1'; $('cCep').value=c.cep||''; $('cEndereco').value=c.endereco||''; $('cNumero').value=c.numero||''; $('cComplemento').value=c.complemento||''; $('cBairro').value=c.bairro||''; $('cCidade').value=c.cidade||''; $('cUf').value=c.uf||''; $('cObservacao').value=c.observacao||'';
+ $('cId').value=c.id; $('cNome').value=c.nome||''; $('cBox').value=c.box||''; $('cAtivo').value=Number(c.ativo)===0?'0':'1'; $('cCep').value=c.cep||''; $('cEndereco').value=c.endereco||''; $('cNumero').value=c.numero||''; $('cComplemento').value=c.complemento||''; $('cBairro').value=c.bairro||''; $('cCidade').value=c.cidade||''; $('cUf').value=c.uf||''; $('cEmails').value=(c.emails||[]).join('\n'); $('cObservacao').value=c.observacao||'';
   $('companyEditorTitle').textContent='Editar empresa';$('companyEditor')?.classList.remove('hidden');$('companyEditor').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function salvarEmpresa(){
   if(!canManageCompanies)return alert('Somente Legalização e administradores podem alterar empresas.');
-  const id=$('cId').value;const body={nome:$('cNome').value,box:$('cBox').value,ativo:$('cAtivo').value==='1',cep:$('cCep').value,endereco:$('cEndereco').value,numero:$('cNumero').value,complemento:$('cComplemento').value,bairro:$('cBairro').value,cidade:$('cCidade').value,uf:$('cUf').value,observacao:$('cObservacao').value};
+  const id=$('cId').value;const body={nome:$('cNome').value,box:$('cBox').value,ativo:$('cAtivo').value==='1',cep:$('cCep').value,endereco:$('cEndereco').value,numero:$('cNumero').value,complemento:$('cComplemento').value,bairro:$('cBairro').value,cidade:$('cCidade').value,uf:$('cUf').value,emails:$('cEmails').value.split(/[;,\n]/).map(x=>x.trim()).filter(Boolean),observacao:$('cObservacao').value};
   const resposta=await fetch(id?`/api/clientes/${id}`:'/api/clientes',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json','Cache-Control':'no-cache'},cache:'no-store',body:JSON.stringify(body)});const dados=await resposta.json();if(!resposta.ok)return alert(dados.erro||'Não foi possível salvar.');
   if(id&&!dados.cliente)return alert('O servidor não confirmou os dados salvos. Tente novamente.');
   if(dados.cliente){const indice=companies.findIndex(c=>Number(c.id)===Number(dados.cliente.id));if(indice>=0)companies[indice]=dados.cliente;}
@@ -5459,6 +5471,29 @@ function loadExample(){
   renderNewProtocolItems();
 }
 
+async function imprimirEtiquetaProtocolo(id){
+  const janela=window.open('','_blank','width=720,height=620');
+  if(!janela){
+    alert('Permita pop-ups do Hiperion para imprimir a etiqueta.');
+    return;
+  }
+  janela.document.write('<p style="font-family:Arial;padding:24px">Preparando etiqueta...</p>');
+  try{
+    const resposta=await fetch(`/api/protocolos/${Number(id)}/etiqueta`,{cache:'no-store'});
+    const dados=await resposta.json();
+    if(!resposta.ok)throw new Error(dados.erro||'Não foi possível gerar a etiqueta.');
+    const logo=document.querySelector('.plogo img')?.src||'';
+    const documentos=(dados.itens||[]).map(item=>`<li>${esc(item.descricao)}</li>`).join('');
+    janela.document.open();
+    janela.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Etiqueta ${fmtNum(dados.numero)}</title><style>
+      @page{size:100mm 60mm;margin:3mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;color:#10243f}.label{width:94mm;height:54mm;border:1px solid #9ba9b7;border-radius:3mm;padding:4mm;display:grid;grid-template-columns:1fr 28mm;gap:3mm;overflow:hidden}.brand{display:flex;align-items:center;gap:3mm;border-bottom:1px solid #dce3e9;padding-bottom:2mm}.brand img{width:18mm;height:12mm;object-fit:contain}.brand strong{font-size:12px;letter-spacing:.06em}.number{font-size:10px;color:#567}.company{font-size:15px;font-weight:800;margin:2.5mm 0 1.5mm}.docs{font-size:9px;margin:0;padding-left:4mm;line-height:1.35}.qr{display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid #dce3e9;padding-left:3mm}.qr img{width:25mm;height:25mm}.qr small{font-size:7px;text-align:center;margin-top:1mm}@media print{.label{border-color:#777}}
+    </style></head><body><div class="label"><div><div class="brand">${logo?`<img src="${logo}">`:''}<div><strong>HIPERION</strong><div class="number">PROTOCOLO ${fmtNum(dados.numero)}</div></div></div><div class="company">${esc(dados.cliente)}</div><ul class="docs">${documentos}</ul></div><div class="qr"><img src="${dados.qr_data_url}"><small>Conferência da entrega</small></div></div><script>addEventListener('load',()=>setTimeout(()=>print(),180));<\/script></body></html>`);
+    janela.document.close();
+  }catch(erro){
+    janela.document.body.innerHTML=`<p style="font-family:Arial;padding:24px;color:#a61b1b">${esc(erro.message)}</p>`;
+  }
+}
+
 async function createRequest(){
   if(!hasRole('emissor')){
     alert('Este usuário não pode criar solicitações.');
@@ -5513,7 +5548,14 @@ async function createRequest(){
       throw new Error(dados.erro||'Erro ao criar protocolo.');
     }
 
-    alert(`Protocolo ${fmtNum(dados.numero)} criado com sucesso.`);
+    const imprimir=await hiperionConfirm({
+      title:`Protocolo ${fmtNum(dados.numero)} criado`,
+      message:'Deseja imprimir agora a etiqueta do envelope?',
+      confirmText:'Imprimir etiqueta',
+      cancelText:'Agora não',
+      type:'success'
+    });
+    if(imprimir)await imprimirEtiquetaProtocolo(dados.id);
 
     $('nCliente').value='';
     $('nClienteId').value='';
@@ -5589,6 +5631,7 @@ function renderRequests(){
         </div>
         <div class="statusline">
           ${statusBadge(r.status)}
+          <button class="primary secondary smallbtn" onclick="imprimirEtiquetaProtocolo(${r.id})">Etiqueta</button>
           ${podeAbrir?`<button class="primary smallbtn" onclick="openDelivery(${r.id})">Abrir entrega</button>`:''}
           ${podeCancelar?`<button class="primary warning smallbtn" onclick="cancelProtocolById(${r.id})">Cancelar</button>`:''}
           ${isAdmin()?`<button class="primary danger smallbtn" onclick="deleteProtocol(${r.id})">Excluir</button>`:''}
@@ -5989,6 +6032,86 @@ function clearSign(){
   $('pvSign').removeAttribute('src');
 }
 
+let qrReaderStream=null;
+let qrReaderResolve=null;
+let qrReaderAtivo=false;
+
+function encerrarLeituraQr(valor=null){
+  qrReaderAtivo=false;
+  qrReaderStream?.getTracks().forEach(track=>track.stop());
+  qrReaderStream=null;
+  $('qrReaderVideo')?.pause();
+  $('qrReaderModal')?.classList.add('hidden');
+  $('qrReaderModal')?.setAttribute('aria-hidden','true');
+  const resolver=qrReaderResolve;
+  qrReaderResolve=null;
+  resolver?.(valor);
+}
+
+function cancelarLeituraQr(){encerrarLeituraQr(null)}
+
+async function lerQrDaEtiqueta(){
+  if(!('BarcodeDetector' in window)){
+    alert('Este navegador não oferece leitura de QR Code. Use o Chrome atualizado em um aparelho com câmera.');
+    return null;
+  }
+  const formatos=await BarcodeDetector.getSupportedFormats().catch(()=>[]);
+  if(!formatos.includes('qr_code')){
+    alert('A leitura de QR Code não está disponível neste aparelho.');
+    return null;
+  }
+  return new Promise(async resolve=>{
+    qrReaderResolve=resolve;
+    try{
+      qrReaderStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      const video=$('qrReaderVideo');
+      video.srcObject=qrReaderStream;
+      await video.play();
+      $('qrReaderModal').classList.remove('hidden');
+      $('qrReaderModal').setAttribute('aria-hidden','false');
+      qrReaderAtivo=true;
+      const detector=new BarcodeDetector({formats:['qr_code']});
+      const analisar=async()=>{
+        if(!qrReaderAtivo)return;
+        try{
+          const codigos=await detector.detect(video);
+          const valor=codigos.find(item=>item.rawValue)?.rawValue;
+          if(valor){encerrarLeituraQr(valor);return;}
+        }catch(_){ }
+        if(qrReaderAtivo)setTimeout(analisar,180);
+      };
+      analisar();
+    }catch(erro){
+      console.error('Erro ao abrir câmera:',erro);
+      encerrarLeituraQr(null);
+      alert('Não foi possível abrir a câmera. Confira a permissão do navegador.');
+    }
+  });
+}
+
+async function confirmarEmailsDaEntrega(protocolo){
+  const empresa=companies.find(c=>Number(c.id)===Number(protocolo.clienteId));
+  const padrao=Array.isArray(empresa?.emails)?empresa.emails:[];
+  if(!padrao.length){
+    const continuar=await hiperionConfirm({title:'Empresa sem e-mail cadastrado',message:'Esta entrega será concluída sem envio de comprovante. Deseja continuar?',confirmText:'Concluir sem e-mail',cancelText:'Voltar',type:'warning'});
+    return continuar?[]:null;
+  }
+  const resposta=await hiperionPrompt({title:'Confirmar destinatários',message:'Confira os e-mails que receberão o comprovante. Use um endereço por linha.',inputLabel:'E-mails do cliente',defaultValue:padrao.join('\n'),confirmText:'Confirmar destinatários',cancelText:'Voltar',type:'info',multiline:true});
+  if(resposta===null)return null;
+  const emails=[...new Set(resposta.split(/[;,\n]/).map(item=>item.trim().toLowerCase()).filter(Boolean))];
+  if(emails.some(email=>!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))){
+    alert('Existe um endereço de e-mail inválido. Confira os destinatários.');
+    return confirmarEmailsDaEntrega(protocolo);
+  }
+  return emails;
+}
+
+async function sha256Hex(valor){
+  const dados=new TextEncoder().encode(String(valor||''));
+  const hash=await crypto.subtle.digest('SHA-256',dados);
+  return [...new Uint8Array(hash)].map(byte=>byte.toString(16).padStart(2,'0')).join('');
+}
+
 async function confirmProtocol(){
 
   if(protocolReadOnly){
@@ -6021,6 +6144,20 @@ async function confirmProtocol(){
     return;
   }
 
+  let qrCodigo=null;
+  if(r.qrRequired){
+    qrCodigo=await lerQrDaEtiqueta();
+    if(!qrCodigo)return;
+    const qrHash=await sha256Hex(qrCodigo);
+    if(!r.qrHash||qrHash!==r.qrHash){
+      alert(`Etiqueta incorreta. O QR Code lido não pertence ao protocolo ${fmtNum(r.num)}.`);
+      return;
+    }
+  }
+
+  const emailDestinatarios=await confirmarEmailsDaEntrega(r);
+  if(emailDestinatarios===null)return;
+
   const entregueEmLocal=new Date().toISOString();
 
   const payload={
@@ -6028,7 +6165,9 @@ async function confirmProtocol(){
     protocolo_numero:r.num,
     recebido_por:recebidoPor,
     assinatura:signedData,
-    entregue_em_local:entregueEmLocal
+    entregue_em_local:entregueEmLocal,
+    qr_codigo:qrCodigo,
+    email_destinatarios:emailDestinatarios
   };
 
   let servidorOk=await servidorHiperionDisponivel().catch(()=>false);
@@ -6043,7 +6182,9 @@ async function confirmProtocol(){
           body:JSON.stringify({
             recebido_por:recebidoPor,
             assinatura:signedData,
-            entregue_em_local:entregueEmLocal
+            entregue_em_local:entregueEmLocal,
+            qr_codigo:qrCodigo,
+            email_destinatarios:emailDestinatarios
           })
         }
       );
@@ -6054,11 +6195,14 @@ async function confirmProtocol(){
         throw new Error(dados.erro||'Erro ao confirmar entrega.');
       }
 
-      alert(
-        `Protocolo ${fmtNum(
-          dados.numero || r.num
-        )} entregue com sucesso.`
-      );
+      const avisoEmail=dados.email_status==='enviado'
+        ? '\nComprovante enviado por e-mail.'
+        : dados.email_status==='pendente_configuracao'
+          ? '\nEntrega concluída; o e-mail aguarda configuração do serviço.'
+          : dados.email_status==='falhou'
+            ? '\nEntrega concluída; não foi possível enviar o e-mail.'
+            : '';
+      alert(`Protocolo ${fmtNum(dados.numero || r.num)} entregue com sucesso.${avisoEmail}`);
 
       // Usa imediatamente o horário devolvido pelo servidor.
       // Se por algum motivo ele não vier, usa o horário da coleta.
@@ -6785,6 +6929,8 @@ function aplicarDadosProtocolos(dados,proximoNumero=null){
     assinatura:p.assinatura||null,
     created:p.criado_em,
     deliveredAt:p.entregue_em||null,
+    qrHash:p.qr_hash||'',
+    qrRequired:Number(p.qr_obrigatorio||0)===1,
     cancelReason:p.motivo_cancelamento||'',
     cancelledAt:p.cancelado_em||null
   }));
@@ -6841,6 +6987,8 @@ function aplicarDadosProtocolos(dados,proximoNumero=null){
           }
         )(),
         status:p.status,
+        qrHash:p.qr_hash||'',
+        qrRequired:Number(p.qr_obrigatorio||0)===1,
         reason:p.motivo_cancelamento||''
       };
     });

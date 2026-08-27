@@ -182,6 +182,24 @@ adicionarColunaSeNaoExistir(
 
 adicionarColunaSeNaoExistir('protocolos', 'cliente_id', 'INTEGER');
 adicionarColunaSeNaoExistir('protocolos', 'cliente_box', 'TEXT');
+adicionarColunaSeNaoExistir('clientes', 'emails_json', "TEXT NOT NULL DEFAULT '[]'");
+adicionarColunaSeNaoExistir('protocolos', 'qr_token', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'qr_obrigatorio', 'INTEGER NOT NULL DEFAULT 0');
+adicionarColunaSeNaoExistir('protocolos', 'qr_confirmado_em', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'qr_confirmado_por', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'email_destinatarios', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'email_status', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'email_enviado_em', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'email_erro', 'TEXT');
+
+db.exec(`
+  UPDATE protocolos
+  SET qr_token = lower(hex(randomblob(24)))
+  WHERE qr_token IS NULL OR TRIM(qr_token) = '';
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_protocolos_qr_token
+  ON protocolos(qr_token);
+`);
 
 // ========================================
 // LOGIN E SENHAS

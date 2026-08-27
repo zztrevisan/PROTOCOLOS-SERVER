@@ -1,6 +1,8 @@
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
+const QRCode = require('qrcode');
+const { normalizarDestinatarios, enviarComprovanteEntrega } = require('./lib/email');
 
 const app = express();
 
@@ -132,6 +134,26 @@ async function garantirEstruturaOperacional(conexao) {
   await adicionarColunaTurso(conexao, 'protocolos', 'cliente_id', 'INTEGER');
   await adicionarColunaTurso(conexao, 'protocolos', 'cliente_box', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolo_itens', 'competencia', 'TEXT');
+  await adicionarColunaTurso(conexao, 'clientes', 'emails_json', "TEXT NOT NULL DEFAULT '[]'");
+  await adicionarColunaTurso(conexao, 'protocolos', 'qr_token', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'qr_obrigatorio', 'INTEGER NOT NULL DEFAULT 0');
+  await adicionarColunaTurso(conexao, 'protocolos', 'qr_confirmado_em', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'qr_confirmado_por', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'email_destinatarios', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'email_status', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'email_enviado_em', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'email_erro', 'TEXT');
+
+  const semQr = await conexao.all(
+    "SELECT id FROM protocolos WHERE qr_token IS NULL OR TRIM(qr_token) = ''"
+  );
+  for (const protocolo of semQr) {
+    await conexao.run(
+      'UPDATE protocolos SET qr_token = ? WHERE id = ?',
+      crypto.randomBytes(24).toString('hex'),
+      protocolo.id
+    );
+  }
 
   await conexao.run('CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome)');
   await conexao.run('CREATE INDEX IF NOT EXISTS idx_clientes_box ON clientes(box)');
@@ -219,6 +241,14 @@ async function sqlRun(
 // ============================================================
 // EXPRESS
 // ============================================================
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+  next();
+});
 
 app.use(
 
@@ -1459,6 +1489,22 @@ app.get(
 // CLIENTES / EMPRESAS
 // ============================================================
 
+function normalizarEmailsCliente(valor) {
+  const lista = Array.isArray(valor) ? valor : String(valor || '').split(/[;,\n]/);
+  const emails = [...new Set(lista.map(item => String(item || '').trim().toLowerCase()).filter(Boolean))];
+  if (emails.some(email => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    throw new Error('EMAIL_INVALIDO');
+  }
+  return emails.slice(0, 10);
+}
+
+function clienteComEmails(cliente) {
+  let emails = [];
+  try { emails = JSON.parse(cliente.emails_json || '[]'); } catch {}
+  const { emails_json, ...dados } = cliente;
+  return { ...dados, emails: normalizarEmailsCliente(emails) };
+}
+
 app.get('/api/clientes', async (req, res) => {
   try {
     const database = await garantirDb();
@@ -1467,13 +1513,13 @@ app.get('/api/clientes', async (req, res) => {
     const clientes = await sqlAll(database, `
       SELECT id, nome, box, endereco, numero, complemento,
              bairro, cidade, uf, cep, observacao, ativo,
-             criado_em, atualizado_em
+             emails_json, criado_em, atualizado_em
       FROM clientes
       ${incluirInativos ? '' : 'WHERE ativo = 1'}
       ORDER BY nome COLLATE NOCASE
     `);
     res.json({
-      clientes,
+      clientes: clientes.map(clienteComEmails),
       pode_gerenciar: podeGerenciarClientes(req.usuarioLogado)
     });
   } catch (erro) {
@@ -1489,18 +1535,22 @@ app.post('/api/clientes', exigirGerenciaDeClientes, async (req, res) => {
     if (!nome) return res.status(400).json({ erro: 'Nome da empresa é obrigatório.' });
     const valor = campo => String(req.body[campo] || '').trim() || null;
     const ativo = req.body.ativo === false ? 0 : 1;
+    const emails = normalizarEmailsCliente(req.body.emails);
     const resultado = await sqlRun(database, `
       INSERT INTO clientes (
         nome, nome_normalizado, box, endereco, numero, complemento,
-        bairro, cidade, uf, cep, observacao, ativo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        bairro, cidade, uf, cep, observacao, emails_json, ativo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       nome, textoNormalizado(nome), valor('box'), valor('endereco'),
       valor('numero'), valor('complemento'), valor('bairro'), valor('cidade'),
-      valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao'), ativo
+      valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao'), JSON.stringify(emails), ativo
     ]);
     res.status(201).json({ ok: true, id: Number(resultado?.lastInsertRowid || 0) });
   } catch (erro) {
+    if (/EMAIL_INVALIDO/.test(String(erro?.message || erro))) {
+      return res.status(400).json({ erro: 'Informe somente endereços de e-mail válidos.' });
+    }
     if (/unique/i.test(String(erro?.message || erro))) {
       return res.status(409).json({ erro: 'Esta empresa já está cadastrada.' });
     }
@@ -1519,18 +1569,19 @@ app.put('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
     }
     const valor = campo => String(req.body[campo] || '').trim() || null;
     const ativo = req.body.ativo === false ? 0 : 1;
+    const emails = normalizarEmailsCliente(req.body.emails);
     const existente = await sqlGet(database, 'SELECT id FROM clientes WHERE id = ?', [id]);
     if (!existente) return res.status(404).json({ erro: 'Empresa não encontrada.' });
     const resultado = await sqlRun(database, `
       UPDATE clientes SET
         nome = ?, nome_normalizado = ?, box = ?, endereco = ?, numero = ?,
         complemento = ?, bairro = ?, cidade = ?, uf = ?, cep = ?,
-        observacao = ?, ativo = ?, atualizado_em = CURRENT_TIMESTAMP
+        observacao = ?, emails_json = ?, ativo = ?, atualizado_em = CURRENT_TIMESTAMP
       WHERE id = ?
     `, [
       nome, textoNormalizado(nome), valor('box'), valor('endereco'),
       valor('numero'), valor('complemento'), valor('bairro'), valor('cidade'),
-      valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao'), ativo, id
+      valor('uf')?.toUpperCase() || null, valor('cep'), valor('observacao'), JSON.stringify(emails), ativo, id
     ]);
     if (Number(resultado?.changes || 0) !== 1) {
       throw new Error('A alteração da empresa não foi confirmada pelo banco.');
@@ -1538,15 +1589,18 @@ app.put('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
     const cliente = await sqlGet(database, `
       SELECT id, nome, box, endereco, numero, complemento,
              bairro, cidade, uf, cep, observacao, ativo,
-             criado_em, atualizado_em
+             emails_json, criado_em, atualizado_em
       FROM clientes
       WHERE id = ?
     `, [id]);
     if (!cliente) {
       throw new Error('A empresa não pôde ser relida após a alteração.');
     }
-    res.json({ ok: true, cliente });
+    res.json({ ok: true, cliente: clienteComEmails(cliente) });
   } catch (erro) {
+    if (/EMAIL_INVALIDO/.test(String(erro?.message || erro))) {
+      return res.status(400).json({ erro: 'Informe somente endereços de e-mail válidos.' });
+    }
     if (/unique/i.test(String(erro?.message || erro))) {
       return res.status(409).json({ erro: 'Já existe outra empresa com esse nome.' });
     }
@@ -2900,9 +2954,15 @@ async function anexarItens(
   }
 
 
+  const { qr_token, ...dadosPublicos } = protocolo;
+  const qr_hash = qr_token
+    ? crypto.createHash('sha256').update(`HIPERION:${protocolo.id}:${qr_token}`).digest('hex')
+    : '';
+
   return {
 
-    ...protocolo,
+    ...dadosPublicos,
+    qr_hash,
 
     itens:
       await buscarItensDoProtocolo(
@@ -2996,6 +3056,13 @@ app.get(
               motivo_cancelamento,
               cancelado_por,
               cancelado_em,
+              qr_token,
+              qr_obrigatorio,
+              qr_confirmado_em,
+              qr_confirmado_por,
+              email_destinatarios,
+              email_status,
+              email_enviado_em,
               excluido,
               excluido_em,
               excluido_por
@@ -3401,6 +3468,8 @@ app.post(
             const primeiroItem =
               itens[0];
 
+            const qrToken = crypto.randomBytes(24).toString('hex');
+
 
             const resultado =
               await sqlRun(
@@ -3421,12 +3490,14 @@ app.post(
                     emissor,
                     entregador,
                     observacao,
-                    status
+                    status,
+                    qr_token,
+                    qr_obrigatorio
 
                   )
 
                   VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                   )
                 `,
 
@@ -3462,7 +3533,11 @@ app.post(
                     ?.trim() ||
                     null,
 
-                  'Aguardando entrega'
+                  'Aguardando entrega',
+
+                  qrToken,
+
+                  1
 
                 ]
 
@@ -3924,6 +3999,28 @@ app.put(
 // CONFIRMAR ENTREGA
 // ============================================================
 
+app.get('/api/protocolos/:id/etiqueta', async (req, res) => {
+  try {
+    const database = await garantirDb();
+    const id = Number(req.params.id);
+    const protocolo = await sqlGet(database, 'SELECT * FROM protocolos WHERE id = ? AND COALESCE(excluido, 0) = 0', [id]);
+    if (!protocolo) return res.status(404).json({ erro: 'Protocolo não encontrado.' });
+    const completo = await anexarItens(protocolo);
+    const codigo = `HIPERION:${protocolo.id}:${protocolo.qr_token}`;
+    const qr_data_url = await QRCode.toDataURL(codigo, { width: 300, margin: 1, errorCorrectionLevel: 'M' });
+    res.set('Cache-Control', 'no-store').json({
+      id: protocolo.id,
+      numero: protocolo.numero,
+      cliente: protocolo.cliente,
+      itens: completo.itens,
+      qr_data_url
+    });
+  } catch (erro) {
+    console.error('Erro ao gerar etiqueta:', erro);
+    res.status(500).json({ erro: 'Não foi possível gerar a etiqueta.' });
+  }
+});
+
 app.put(
 
   '/api/protocolos/:id/entregar',
@@ -3951,7 +4048,9 @@ app.put(
 
         recebido_por,
         assinatura,
-        entregue_em_local
+        entregue_em_local,
+        qr_codigo,
+        email_destinatarios
 
       } =
         req.body;
@@ -3987,7 +4086,7 @@ app.put(
           .json({
 
             erro:
-              'Nome de quem recebeu e assinatura são obrigatórios.'
+              'Nome, assinatura e conferência do QR Code são obrigatórios.'
 
           });
 
@@ -4078,6 +4177,13 @@ app.put(
 
       }
 
+      const qrEsperado = `HIPERION:${protocolo.id}:${protocolo.qr_token}`;
+      if (Number(protocolo.qr_obrigatorio) === 1 && (!protocolo.qr_token || String(qr_codigo) !== qrEsperado)) {
+        return res.status(400).json({ erro: 'O QR Code não corresponde a este protocolo.' });
+      }
+
+      const destinatarios = normalizarDestinatarios(email_destinatarios);
+
 
       if (
         protocolo.status ===
@@ -4141,7 +4247,15 @@ app.put(
 
             assinatura = ?,
 
-            entregue_em = ?
+            entregue_em = ?,
+
+            qr_confirmado_em = ?,
+
+            qr_confirmado_por = ?,
+
+            email_destinatarios = ?,
+
+            email_status = ?
 
           WHERE id = ?
         `,
@@ -4155,6 +4269,14 @@ app.put(
           assinatura,
 
           entregueEm,
+
+          new Date().toISOString(),
+
+          req.usuarioLogado.nome,
+
+          JSON.stringify(destinatarios),
+
+          destinatarios.length ? 'pendente' : 'nao_solicitado',
 
           id
 
@@ -4183,13 +4305,15 @@ app.put(
         );
 
 
-      res.json(
-
-        await anexarItens(
-          atualizado
-        )
-
-      );
+      const completo = await anexarItens(atualizado);
+      const envio = await enviarComprovanteEntrega({ protocolo: atualizado, itens: completo.itens, destinatarios });
+      await sqlRun(database, `UPDATE protocolos SET email_status = ?, email_enviado_em = ?, email_erro = ? WHERE id = ?`, [
+        envio.status,
+        envio.status === 'enviado' ? new Date().toISOString() : null,
+        envio.erro || null,
+        id
+      ]);
+      res.json({ ...completo, email_status: envio.status, email_erro: envio.erro || null });
 
 
     } catch (erro) {

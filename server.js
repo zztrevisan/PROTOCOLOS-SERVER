@@ -1,6 +1,8 @@
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
+const QRCode = require('qrcode');
+const { normalizarDestinatarios, enviarComprovanteEntrega } = require('./lib/email');
 
 try {
   process.loadEnvFile('.env');
@@ -23,7 +25,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
   next();
 });
 
@@ -870,6 +872,22 @@ app.get('/health', (req, res) => {
 // Consulta global; manutenção exclusiva da Legalização e Admin.
 // ============================================================
 
+function normalizarEmailsCliente(valor) {
+  const lista = Array.isArray(valor) ? valor : String(valor || '').split(/[;,\n]/);
+  const emails = [...new Set(lista.map(item => String(item || '').trim().toLowerCase()).filter(Boolean))];
+  if (emails.some(email => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+    throw new Error('EMAIL_INVALIDO');
+  }
+  return emails.slice(0, 10);
+}
+
+function clienteComEmails(cliente) {
+  let emails = [];
+  try { emails = JSON.parse(cliente.emails_json || '[]'); } catch {}
+  const { emails_json, ...dados } = cliente;
+  return { ...dados, emails: normalizarEmailsCliente(emails) };
+}
+
 app.get('/api/clientes', (req, res) => {
   try {
     const incluirInativos = req.query.inativos === '1' &&
@@ -878,14 +896,14 @@ app.get('/api/clientes', (req, res) => {
     const clientes = db.prepare(`
       SELECT id, nome, box, endereco, numero, complemento,
              bairro, cidade, uf, cep, observacao, ativo,
-             criado_em, atualizado_em
+             emails_json, criado_em, atualizado_em
       FROM clientes
       ${incluirInativos ? '' : 'WHERE ativo = 1'}
       ORDER BY nome COLLATE NOCASE
     `).all();
 
     res.json({
-      clientes,
+      clientes: clientes.map(clienteComEmails),
       pode_gerenciar: podeGerenciarClientes(req.usuarioLogado)
     });
   } catch (erro) {
@@ -904,21 +922,25 @@ app.post('/api/clientes', exigirGerenciaDeClientes, (req, res) => {
       return texto || null;
     };
     const ativo = req.body.ativo === false ? 0 : 1;
+    const emails = normalizarEmailsCliente(req.body.emails);
 
     const resultado = db.prepare(`
       INSERT INTO clientes (
         nome, nome_normalizado, box, endereco, numero, complemento,
-        bairro, cidade, uf, cep, observacao, ativo
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        bairro, cidade, uf, cep, observacao, emails_json, ativo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       nome, textoNormalizado(nome), valor('box'), valor('endereco'),
       valor('numero'), valor('complemento'), valor('bairro'),
       valor('cidade'), valor('uf')?.toUpperCase() || null,
-      valor('cep'), valor('observacao'), ativo
+      valor('cep'), valor('observacao'), JSON.stringify(emails), ativo
     );
 
     res.status(201).json({ ok: true, id: Number(resultado.lastInsertRowid) });
   } catch (erro) {
+    if (String(erro.message).includes('EMAIL_INVALIDO')) {
+      return res.status(400).json({ erro: 'Informe somente endereços de e-mail válidos.' });
+    }
     if (String(erro.message).includes('UNIQUE')) {
       return res.status(409).json({ erro: 'Esta empresa já está cadastrada.' });
     }
@@ -936,21 +958,31 @@ app.put('/api/clientes/:id', exigirGerenciaDeClientes, (req, res) => {
     }
     const valor = campo => String(req.body[campo] || '').trim() || null;
     const ativo = req.body.ativo === false ? 0 : 1;
+    const emails = normalizarEmailsCliente(req.body.emails);
     const resultado = db.prepare(`
       UPDATE clientes SET
         nome = ?, nome_normalizado = ?, box = ?, endereco = ?, numero = ?,
         complemento = ?, bairro = ?, cidade = ?, uf = ?, cep = ?,
-        observacao = ?, ativo = ?, atualizado_em = CURRENT_TIMESTAMP
+        observacao = ?, emails_json = ?, ativo = ?, atualizado_em = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
       nome, textoNormalizado(nome), valor('box'), valor('endereco'),
       valor('numero'), valor('complemento'), valor('bairro'),
       valor('cidade'), valor('uf')?.toUpperCase() || null,
-      valor('cep'), valor('observacao'), ativo, id
+      valor('cep'), valor('observacao'), JSON.stringify(emails), ativo, id
     );
     if (!resultado.changes) return res.status(404).json({ erro: 'Empresa não encontrada.' });
-    res.json({ ok: true });
+    const cliente = db.prepare(`
+      SELECT id, nome, box, endereco, numero, complemento,
+             bairro, cidade, uf, cep, observacao, emails_json, ativo,
+             criado_em, atualizado_em
+      FROM clientes WHERE id = ?
+    `).get(id);
+    res.json({ ok: true, cliente: clienteComEmails(cliente) });
   } catch (erro) {
+    if (String(erro.message).includes('EMAIL_INVALIDO')) {
+      return res.status(400).json({ erro: 'Informe somente endereços de e-mail válidos.' });
+    }
     if (String(erro.message).includes('UNIQUE')) {
       return res.status(409).json({ erro: 'Já existe outra empresa com esse nome.' });
     }
@@ -1942,9 +1974,15 @@ function anexarItens(
 
   }
 
+  const { qr_token, ...dadosPublicos } = protocolo;
+  const qr_hash = qr_token
+    ? crypto.createHash('sha256').update(`HIPERION:${protocolo.id}:${qr_token}`).digest('hex')
+    : '';
+
   return {
 
-    ...protocolo,
+    ...dadosPublicos,
+    qr_hash,
 
     itens:
       buscarItensDoProtocolo(
@@ -2001,6 +2039,13 @@ app.get(
             motivo_cancelamento,
             cancelado_por,
             cancelado_em,
+            qr_token,
+            qr_obrigatorio,
+            qr_confirmado_em,
+            qr_confirmado_por,
+            email_destinatarios,
+            email_status,
+            email_enviado_em,
             excluido,
             excluido_em,
             excluido_por
@@ -2323,6 +2368,8 @@ app.post(
       const primeiroItem =
         itens[0];
 
+      const qrToken = crypto.randomBytes(24).toString('hex');
+
       const resultado =
         db.prepare(`
           INSERT INTO protocolos (
@@ -2338,12 +2385,14 @@ app.post(
             emissor,
             entregador,
             observacao,
-            status
+            status,
+            qr_token,
+            qr_obrigatorio
 
           )
 
           VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
           )
         `).run(
 
@@ -2377,7 +2426,11 @@ app.post(
             ?.trim() ||
             null,
 
-          'Aguardando entrega'
+          'Aguardando entrega',
+
+          qrToken,
+
+          1
 
         );
 
@@ -2701,10 +2754,31 @@ app.put(
 // CONFIRMAR ENTREGA + ASSINATURA
 // ============================================================
 
+app.get('/api/protocolos/:id/etiqueta', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const protocolo = db.prepare('SELECT * FROM protocolos WHERE id = ? AND COALESCE(excluido, 0) = 0').get(id);
+    if (!protocolo) return res.status(404).json({ erro: 'Protocolo não encontrado.' });
+    const completo = anexarItens(protocolo);
+    const codigo = `HIPERION:${protocolo.id}:${protocolo.qr_token}`;
+    const qr_data_url = await QRCode.toDataURL(codigo, { width: 300, margin: 1, errorCorrectionLevel: 'M' });
+    res.set('Cache-Control', 'no-store').json({
+      id: protocolo.id,
+      numero: protocolo.numero,
+      cliente: protocolo.cliente,
+      itens: completo.itens,
+      qr_data_url
+    });
+  } catch (erro) {
+    console.error('Erro ao gerar etiqueta:', erro);
+    res.status(500).json({ erro: 'Não foi possível gerar a etiqueta.' });
+  }
+});
+
 app.put(
   '/api/protocolos/:id/entregar',
   exigirEntregador,
-  (req, res) => {
+  async (req, res) => {
 
     try {
 
@@ -2716,7 +2790,9 @@ app.put(
       const {
         recebido_por,
         assinatura,
-        entregue_em_local
+        entregue_em_local,
+        qr_codigo,
+        email_destinatarios
       } = req.body;
 
       if (
@@ -2748,7 +2824,7 @@ app.put(
           .json({
 
             erro:
-              'Nome de quem recebeu e assinatura são obrigatórios.'
+              'Nome, assinatura e conferência do QR Code são obrigatórios.'
 
           });
 
@@ -2825,6 +2901,17 @@ app.put(
 
       }
 
+      const qrEsperado = `HIPERION:${protocolo.id}:${protocolo.qr_token}`;
+      const qrRecebidoBuffer = Buffer.from(String(qr_codigo));
+      const qrEsperadoBuffer = Buffer.from(qrEsperado);
+      if (Number(protocolo.qr_obrigatorio) === 1 && (!qr_codigo || !protocolo.qr_token ||
+          qrRecebidoBuffer.length !== qrEsperadoBuffer.length ||
+          !crypto.timingSafeEqual(qrRecebidoBuffer, qrEsperadoBuffer))) {
+        return res.status(400).json({ erro: 'O QR Code não corresponde a este protocolo.' });
+      }
+
+      const destinatarios = normalizarDestinatarios(email_destinatarios);
+
       // Importante para sincronização:
       // se já chegou uma vez,
       // devolvemos o protocolo.
@@ -2882,7 +2969,15 @@ app.put(
 
           assinatura = ?,
 
-          entregue_em = ?
+          entregue_em = ?,
+
+          qr_confirmado_em = ?,
+
+          qr_confirmado_por = ?,
+
+          email_destinatarios = ?,
+
+          email_status = ?
 
         WHERE id = ?
       `).run(
@@ -2894,6 +2989,14 @@ app.put(
         assinatura,
 
         entregueEm,
+
+        new Date().toISOString(),
+
+        req.usuarioLogado.nome,
+
+        JSON.stringify(destinatarios),
+
+        destinatarios.length ? 'pendente' : 'nao_solicitado',
 
         id
 
@@ -2910,13 +3013,15 @@ app.put(
           id
         );
 
-      res.json(
-
-        anexarItens(
-          atualizado
-        )
-
+      const completo = anexarItens(atualizado);
+      const envio = await enviarComprovanteEntrega({ protocolo: atualizado, itens: completo.itens, destinatarios });
+      db.prepare(`UPDATE protocolos SET email_status = ?, email_enviado_em = ?, email_erro = ? WHERE id = ?`).run(
+        envio.status,
+        envio.status === 'enviado' ? new Date().toISOString() : null,
+        envio.erro || null,
+        id
       );
+      res.json({ ...completo, email_status: envio.status, email_erro: envio.erro || null });
 
     } catch (erro) {
 

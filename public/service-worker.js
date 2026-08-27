@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v50-recent-protocol-companies';
+  'hiperion-protocolos-v51-label-qr-email';
 
 
 const APP_SHELL = [
