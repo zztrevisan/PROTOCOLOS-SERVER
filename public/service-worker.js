@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v64-login-overview';
+  'hiperion-protocolos-v65-hide-delivered-label-action';
 
 
 const APP_SHELL = [

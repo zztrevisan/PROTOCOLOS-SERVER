@@ -5853,7 +5853,7 @@ function renderRequests(){
         </div>
         <div class="statusline">
           ${statusBadge(r.status)}
-          <button class="primary secondary smallbtn" onclick="abrirOpcoesEtiqueta(${r.id})">Etiqueta</button>
+          ${r.status!=='Entregue'?`<button class="primary secondary smallbtn" onclick="abrirOpcoesEtiqueta(${r.id})">Etiqueta</button>`:''}
           ${podeAbrir?`<button class="primary smallbtn" onclick="openDelivery(${r.id})">Abrir entrega</button>`:''}
           ${podeCancelar?`<button class="primary warning smallbtn" onclick="cancelProtocolById(${r.id})">Cancelar</button>`:''}
           ${isAdmin()?`<button class="primary danger smallbtn" onclick="deleteProtocol(${r.id})">Excluir</button>`:''}
