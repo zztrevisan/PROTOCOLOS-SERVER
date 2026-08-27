@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v66-brand-typeface';
+  'hiperion-protocolos-v67-dialog-button-contrast';
 
 
 const APP_SHELL = [
