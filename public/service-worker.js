@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v52-a4-qr-ios';
+  'hiperion-protocolos-v53-label-batch';
 
 
 const APP_SHELL = [

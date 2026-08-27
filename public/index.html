@@ -1306,7 +1306,13 @@ label{font-size:11.5px;color:#344054;margin-bottom:6px}
 .label-sheet-slot.used{border-style:solid;border-color:#0b7895;background:#eaf7f7;color:#075f75}
 .label-sheet-slot.skipped{background:#f4f6f8;color:#c0c7d0}
 .label-sheet-help{margin:8px 0 0;color:#667085;font-size:12px;line-height:1.45;text-align:center}
+.label-batch-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 10px;padding:10px 12px;border:1px solid #cfe0e8;border-radius:11px;background:#f6fbfc}
+.label-batch-count{color:#526579;font-size:12px;font-weight:750}
+.request-select{display:flex;align-items:flex-start;gap:11px;min-width:0;flex:1}
+.request-select input{width:18px;height:18px;margin:2px 0 0;flex:0 0 auto;accent-color:#075f75;cursor:pointer}
+.request.label-selected{border-color:#69a9b8!important;background:#f2fbfc!important;box-shadow:0 0 0 2px rgba(11,120,149,.08)!important}
 @media(max-width:520px){.label-sheet-options{grid-template-columns:1fr}}
+@media(max-width:620px){.label-batch-bar{align-items:stretch;flex-direction:column}.label-batch-bar button{width:100%}}
 @media(max-width:620px){
   .hip-dialog-backdrop{
     align-items:flex-end;
@@ -3612,6 +3618,10 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
       <input id="reqSearch" placeholder="Pesquisar protocolo, empresa, box, documento ou responsável..." oninput="renderRequests()">
       <select id="reqStatus" onchange="renderRequests()"><option value="">Todos os status</option><option>Aguardando entrega</option><option>Em entrega</option><option>Entregue</option><option>Cancelado</option></select>
     </div>
+    <div class="label-batch-bar">
+      <span id="labelBatchCount" class="label-batch-count">Selecione protocolos diferentes para imprimir as etiquetas juntas.</span>
+      <button id="labelBatchButton" class="primary smallbtn" type="button" onclick="abrirEtiquetasSelecionadas()" disabled>Imprimir selecionadas</button>
+    </div>
     <div id="requestList"></div>
   </div>
 </section>
@@ -5499,8 +5509,11 @@ function loadExample(){
   ];
   renderNewProtocolItems();
 }
-function abrirOpcoesEtiqueta(id){
-  $('labelProtocolId').value=Number(id);
+let protocolosParaImprimir=[];
+
+function abrirOpcoesEtiqueta(ids){
+  protocolosParaImprimir=(Array.isArray(ids)?ids:[ids]).map(Number).filter(Boolean);
+  $('labelProtocolId').value=protocolosParaImprimir.join(',');
   $('labelStart').innerHTML=Array.from({length:8},(_,i)=>`<option value="${i+1}">${i+1} — ${i===0?'canto superior esquerdo':i===1?'canto superior direito':`linha ${Math.floor(i/2)+1}, ${i%2?'direita':'esquerda'}`}</option>`).join('');
   $('labelStart').value='1';
   atualizarOpcoesFolhaEtiquetas();
@@ -5515,6 +5528,11 @@ function fecharOpcoesEtiqueta(){
 
 function atualizarOpcoesFolhaEtiquetas(){
   const inicio=Math.max(1,Math.min(8,Number($('labelStart').value)||1));
+  if(protocolosParaImprimir.length>1){
+    $('labelCopies').innerHTML=`<option value="1">${protocolosParaImprimir.length} etiquetas diferentes</option>`;
+    atualizarPreviewFolhaEtiquetas();
+    return;
+  }
   const anterior=Math.max(1,Number($('labelCopies').value)||1);
   const maximo=9-inicio;
   $('labelCopies').innerHTML=Array.from({length:maximo},(_,i)=>`<option value="${i+1}">${i+1}${i?' cópias':' cópia'}</option>`).join('');
@@ -5524,7 +5542,7 @@ function atualizarOpcoesFolhaEtiquetas(){
 
 function atualizarPreviewFolhaEtiquetas(){
   const inicio=Number($('labelStart').value)||1;
-  const copias=Number($('labelCopies').value)||1;
+  const copias=protocolosParaImprimir.length>1?Math.min(protocolosParaImprimir.length,9-inicio):(Number($('labelCopies').value)||1);
   $('labelSheetPreview').innerHTML=Array.from({length:8},(_,i)=>{
     const pos=i+1;
     const classe=pos<inicio?'skipped':pos<inicio+copias?'used':'';
@@ -5534,14 +5552,20 @@ function atualizarPreviewFolhaEtiquetas(){
 }
 
 async function confirmarImpressaoEtiqueta(){
-  const id=Number($('labelProtocolId').value);
+  const impressaoEmLote=protocolosParaImprimir.length>1;
   const copias=Number($('labelCopies').value)||1;
   const inicio=Number($('labelStart').value)||1;
   fecharOpcoesEtiqueta();
-  await imprimirEtiquetaProtocolo(id,copias,inicio);
+  const ids=protocolosParaImprimir.length===1?Array.from({length:copias},()=>protocolosParaImprimir[0]):protocolosParaImprimir;
+  await imprimirEtiquetasProtocolos(ids,inicio);
+  if(impressaoEmLote){etiquetasSelecionadas.clear();renderRequests()}
 }
 
 async function imprimirEtiquetaProtocolo(id,copias=1,posicaoInicial=1){
+  await imprimirEtiquetasProtocolos(Array.from({length:copias},()=>Number(id)),posicaoInicial);
+}
+
+async function imprimirEtiquetasProtocolos(ids,posicaoInicial=1){
   const janela=window.open('','_blank','width=720,height=620');
   if(!janela){
     alert('Permita pop-ups do Hiperion para imprimir a etiqueta.');
@@ -5549,20 +5573,28 @@ async function imprimirEtiquetaProtocolo(id,copias=1,posicaoInicial=1){
   }
   janela.document.write('<p style="font-family:Arial;padding:24px">Preparando etiqueta...</p>');
   try{
-    const resposta=await fetch(`/api/protocolos/${Number(id)}/etiqueta`,{cache:'no-store'});
-    const dados=await resposta.json();
-    if(!resposta.ok)throw new Error(dados.erro||'Não foi possível gerar a etiqueta.');
+    const dados=await Promise.all(ids.map(async id=>{
+      const resposta=await fetch(`/api/protocolos/${Number(id)}/etiqueta`,{cache:'no-store'});
+      const etiqueta=await resposta.json();
+      if(!resposta.ok)throw new Error(etiqueta.erro||'Não foi possível gerar uma das etiquetas.');
+      return etiqueta;
+    }));
     const logo=document.querySelector('.plogo img')?.src||'';
-    const documentos=(dados.itens||[]).map(item=>`<li>${esc(item.descricao)}</li>`).join('');
     const inicio=Math.max(1,Math.min(8,Number(posicaoInicial)||1));
-    const quantidade=Math.max(1,Math.min(9-inicio,Number(copias)||1));
-    const etiqueta=`<div class="label"><div><div class="brand">${logo?`<img src="${logo}">`:''}<div><strong>HIPERION</strong><div class="number">PROTOCOLO ${fmtNum(dados.numero)}</div></div></div><div class="company">${esc(dados.cliente)}</div><ul class="docs">${documentos}</ul></div><div class="qr"><img src="${dados.qr_data_url}"><small>Conferência da entrega</small></div></div>`;
-    const espacos=Array.from({length:inicio-1},()=>'<div class="slot empty"></div>').join('');
-    const etiquetas=Array.from({length:quantidade},()=>`<div class="slot">${etiqueta}</div>`).join('');
+    const blocos=dados.map(item=>{
+      const documentos=(item.itens||[]).map(documento=>`<li>${esc(documento.descricao)}</li>`).join('');
+      return `<div class="slot"><div class="label"><div><div class="brand">${logo?`<img src="${logo}">`:''}<div><strong>HIPERION</strong><div class="number">PROTOCOLO ${fmtNum(item.numero)}</div></div></div><div class="company">${esc(item.cliente)}</div><ul class="docs">${documentos}</ul></div><div class="qr"><img src="${item.qr_data_url}"><small>Conferência da entrega</small></div></div></div>`;
+    });
+    const folhas=[];
+    let restantes=[...blocos];
+    const primeiraCapacidade=9-inicio;
+    folhas.push(`${Array.from({length:inicio-1},()=>'<div class="slot empty"></div>').join('')}${restantes.splice(0,primeiraCapacidade).join('')}`);
+    while(restantes.length)folhas.push(restantes.splice(0,8).join(''));
+    const conteudo=folhas.map(folha=>`<main class="sheet">${folha}</main>`).join('');
     janela.document.open();
-    janela.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Etiqueta ${fmtNum(dados.numero)}</title><style>
-      @page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:#10243f}.sheet{width:190mm;display:grid;grid-template-columns:92mm 92mm;grid-auto-rows:62mm;column-gap:6mm;row-gap:5mm;align-content:start}.slot{width:92mm;height:62mm;display:flex;align-items:flex-start;justify-content:flex-start}.slot.empty{visibility:hidden}.label{width:92mm;height:60mm;border:1px solid #9ba9b7;border-radius:3mm;padding:4mm;display:grid;grid-template-columns:1fr 27mm;gap:3mm;overflow:hidden;break-inside:avoid}.brand{display:flex;align-items:center;gap:3mm;border-bottom:1px solid #dce3e9;padding-bottom:2mm}.brand img{width:18mm;height:12mm;object-fit:contain}.brand strong{font-size:12px;letter-spacing:.06em}.number{font-size:10px;color:#567}.company{font-size:15px;font-weight:800;margin:2.5mm 0 1.5mm}.docs{font-size:9px;margin:0;padding-left:4mm;line-height:1.35}.qr{display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid #dce3e9;padding-left:3mm}.qr img{width:24mm;height:24mm}.qr small{font-size:7px;text-align:center;margin-top:1mm}@media print{.label{border-color:#777}}
-    </style></head><body><main class="sheet">${espacos}${etiquetas}</main><script>addEventListener('load',()=>setTimeout(()=>print(),220));<\/script></body></html>`);
+    janela.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas de protocolos</title><style>
+      @page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:#10243f}.sheet{width:190mm;min-height:277mm;display:grid;grid-template-columns:92mm 92mm;grid-template-rows:repeat(4,62mm);column-gap:6mm;row-gap:5mm;align-content:start;break-after:page}.sheet:last-child{break-after:auto}.slot{width:92mm;height:62mm;display:flex;align-items:flex-start;justify-content:flex-start}.slot.empty{visibility:hidden}.label{width:92mm;height:60mm;border:1px solid #9ba9b7;border-radius:3mm;padding:4mm;display:grid;grid-template-columns:1fr 27mm;gap:3mm;overflow:hidden;break-inside:avoid}.brand{display:flex;align-items:center;gap:3mm;border-bottom:1px solid #dce3e9;padding-bottom:2mm}.brand img{width:18mm;height:12mm;object-fit:contain}.brand strong{font-size:12px;letter-spacing:.06em}.number{font-size:10px;color:#567}.company{font-size:15px;font-weight:800;margin:2.5mm 0 1.5mm}.docs{font-size:9px;margin:0;padding-left:4mm;line-height:1.35}.qr{display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid #dce3e9;padding-left:3mm}.qr img{width:24mm;height:24mm}.qr small{font-size:7px;text-align:center;margin-top:1mm}@media print{.label{border-color:#777}}
+    </style></head><body>${conteudo}<script>addEventListener('load',()=>setTimeout(()=>print(),220));<\/script></body></html>`);
     janela.document.close();
   }catch(erro){
     janela.document.body.innerHTML=`<p style="font-family:Arial;padding:24px;color:#a61b1b">${esc(erro.message)}</p>`;
@@ -5685,6 +5717,26 @@ function visibleRequestsForUser(){
   return [];
 }
 
+const etiquetasSelecionadas=new Set();
+
+function atualizarBarraEtiquetas(){
+  const total=etiquetasSelecionadas.size;
+  if($('labelBatchCount'))$('labelBatchCount').textContent=total?`${total} ${total===1?'protocolo selecionado':'protocolos selecionados'}`:'Selecione protocolos diferentes para imprimir as etiquetas juntas.';
+  if($('labelBatchButton'))$('labelBatchButton').disabled=!total;
+}
+
+function alternarEtiquetaSelecionada(id,marcado){
+  if(marcado)etiquetasSelecionadas.add(Number(id));else etiquetasSelecionadas.delete(Number(id));
+  atualizarBarraEtiquetas();
+  document.querySelector(`.request[data-request-id="${Number(id)}"]`)?.classList.toggle('label-selected',marcado);
+}
+
+function abrirEtiquetasSelecionadas(){
+  const ids=[...etiquetasSelecionadas];
+  if(!ids.length)return;
+  abrirOpcoesEtiqueta(ids);
+}
+
 function renderRequests(){
   if(!$('requestList'))return;
   const q=$('reqSearch')?.value||'';
@@ -5699,10 +5751,13 @@ function renderRequests(){
     const itens=protocolItemsFromRecord(r);
     const resumo=itens.length===1?itens[0].descricao:`${itens.length} documentos`;
     return `
-      <div class="request">
-        <div>
+      <div class="request ${etiquetasSelecionadas.has(Number(r.id))?'label-selected':''}" data-request-id="${r.id}">
+        <div class="request-select">
+          <input type="checkbox" ${etiquetasSelecionadas.has(Number(r.id))?'checked':''} onchange="alternarEtiquetaSelecionada(${r.id},this.checked)" aria-label="Selecionar etiqueta do protocolo ${fmtNum(r.num)}">
+          <div>
           <strong><span class="protocol-number">${fmtNum(r.num)}</span>${esc(r.cliente)}</strong>
           <small>${r.box?`Box ${esc(r.box)} · `:''}${esc(r.dept)} · Emitido por ${esc(r.emissor)} · Entregador ${esc(r.resp)}<br>${esc(resumo)}</small>
+          </div>
         </div>
         <div class="statusline">
           ${statusBadge(r.status)}
@@ -5713,6 +5768,7 @@ function renderRequests(){
         </div>
       </div>`;
   }).join('')||'<div class="empty">Nenhuma solicitação encontrada para este usuário.</div>';
+  atualizarBarraEtiquetas();
 }
 
 function myDeliveries(){
