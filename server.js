@@ -26,6 +26,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   next();
 });
 
@@ -36,6 +37,98 @@ app.use(
     limit: '5mb'
   })
 );
+
+const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const limitesLocais = new Map();
+
+function origemEsperada(req) {
+  const protocolo = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
+    .split(',')[0]
+    .trim();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '')
+    .split(',')[0]
+    .trim();
+  return host ? `${protocolo}://${host}` : '';
+}
+
+function origensExtrasPermitidas() {
+  return String(process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origem => origem.trim())
+    .filter(Boolean);
+}
+
+function protegerMesmaOrigem(req, res, next) {
+  const origem = String(req.headers.origin || '').trim();
+  const siteOrigem = String(req.headers['sec-fetch-site'] || '').toLowerCase();
+  const permitidas = new Set([origemEsperada(req), ...origensExtrasPermitidas()].filter(Boolean));
+
+  res.vary('Origin');
+
+  if (origem && !permitidas.has(origem)) {
+    return res.status(403).json({ erro: 'Origem não autorizada.' });
+  }
+
+  if (!METODOS_SEGUROS.has(req.method) && siteOrigem === 'cross-site') {
+    return res.status(403).json({ erro: 'Requisição externa bloqueada.' });
+  }
+
+  next();
+}
+
+function identificadorCliente(req) {
+  return String(req.ip || req.socket?.remoteAddress || 'desconhecido');
+}
+
+function consumirLimiteLocal(namespace, identificador, maximo, janelaMs) {
+  const agora = Date.now();
+  const janela = Math.floor(agora / janelaMs);
+  const expiraEm = (janela + 1) * janelaMs;
+  const hash = crypto.createHash('sha256').update(String(identificador || '')).digest('hex');
+  const chave = `${namespace}:${janela}:${hash}`;
+  const quantidade = (limitesLocais.get(chave)?.quantidade || 0) + 1;
+  limitesLocais.set(chave, { quantidade, expiraEm });
+
+  if (limitesLocais.size > 500) {
+    for (const [item, limite] of limitesLocais) {
+      if (limite.expiraEm < agora) limitesLocais.delete(item);
+    }
+  }
+
+  return {
+    permitido: quantidade <= maximo,
+    restante: Math.max(0, maximo - quantidade),
+    retryAfter: Math.max(1, Math.ceil((expiraEm - agora) / 1000))
+  };
+}
+
+function responderLimiteExcedido(res, limite) {
+  res.setHeader('Retry-After', String(limite.retryAfter));
+  return res.status(429).json({
+    erro: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.'
+  });
+}
+
+function limitarLogin(req, res, next) {
+  const ip = identificadorCliente(req);
+  const login = String(req.body?.usuario || '').trim().toLowerCase() || 'sem-login';
+  const porCredencial = consumirLimiteLocal('login-credencial', `${ip}:${login}`, 8, 15 * 60 * 1000);
+  if (!porCredencial.permitido) return responderLimiteExcedido(res, porCredencial);
+  const porIp = consumirLimiteLocal('login-ip', ip, 50, 15 * 60 * 1000);
+  if (!porIp.permitido) return responderLimiteExcedido(res, porIp);
+  next();
+}
+
+function limitarMutacoesApi(req, res, next) {
+  if (METODOS_SEGUROS.has(req.method)) return next();
+  const identificador = req.usuarioLogado?.id || identificadorCliente(req);
+  const limite = consumirLimiteLocal('api-mutacao', identificador, 120, 5 * 60 * 1000);
+  res.setHeader('X-RateLimit-Remaining', String(limite.restante));
+  if (!limite.permitido) return responderLimiteExcedido(res, limite);
+  next();
+}
+
+app.use('/api', protegerMesmaOrigem);
 
 app.use(
   express.static(
@@ -371,6 +464,7 @@ function obterUsuarioLogado(req) {
 
 app.post(
   '/api/login',
+  limitarLogin,
   (req, res) => {
 
     try {
@@ -837,6 +931,8 @@ app.use(
   exigirLogin
 );
 
+app.use('/api', limitarMutacoesApi);
+
 
 // ============================================================
 // TESTE DO SERVIDOR
@@ -1035,6 +1131,7 @@ app.delete('/api/clientes/:id', exigirGerenciaDeClientes, (req, res) => {
 
 app.get(
   '/api/usuarios',
+  exigirAdmin,
   (req, res) => {
 
     try {
@@ -2116,6 +2213,7 @@ app.get(
 
 app.get(
   '/api/protocolos/proximo-numero',
+  exigirEmissor,
   (req, res) => {
 
     try {
@@ -2776,7 +2874,7 @@ app.put(
 // CONFIRMAR ENTREGA + ASSINATURA
 // ============================================================
 
-app.get('/api/protocolos/:id/etiqueta', async (req, res) => {
+app.get('/api/protocolos/:id/etiqueta', exigirEmissor, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const protocolo = db.prepare('SELECT * FROM protocolos WHERE id = ? AND COALESCE(excluido, 0) = 0').get(id);
@@ -3071,6 +3169,7 @@ app.put(
 
 app.put(
   '/api/protocolos/:id/cancelar',
+  exigirEmissor,
   (req, res) => {
 
     try {

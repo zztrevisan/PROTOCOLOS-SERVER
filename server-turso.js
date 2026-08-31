@@ -6,6 +6,12 @@ const { normalizarDestinatarios, enviarComprovanteEntrega } = require('./lib/ema
 
 const app = express();
 
+app.disable('x-powered-by');
+
+if (process.env.TRUST_PROXY === '1' || process.env.VERCEL) {
+  app.set('trust proxy', 1);
+}
+
 const PORT =
   process.env.PORT ||
   3000;
@@ -111,6 +117,14 @@ async function adicionarColunaTurso(conexao, tabela, coluna, definicao) {
 
 async function garantirEstruturaOperacional(conexao) {
   await conexao.run(`
+    CREATE TABLE IF NOT EXISTS limites_acesso (
+      chave TEXT PRIMARY KEY,
+      quantidade INTEGER NOT NULL DEFAULT 0,
+      expira_em INTEGER NOT NULL
+    )
+  `);
+
+  await conexao.run(`
     CREATE TABLE IF NOT EXISTS clientes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,
@@ -157,6 +171,7 @@ async function garantirEstruturaOperacional(conexao) {
 
   await conexao.run('CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome)');
   await conexao.run('CREATE INDEX IF NOT EXISTS idx_clientes_box ON clientes(box)');
+  await conexao.run('CREATE INDEX IF NOT EXISTS idx_limites_acesso_expira ON limites_acesso(expira_em)');
 
   const clientesIniciais = [
     ['LIN QIYING', '742'], ['RISCAZERA', '802'],
@@ -237,6 +252,81 @@ async function sqlRun(
 
 }
 
+function identificadorCliente(req) {
+  return String(req.ip || req.socket?.remoteAddress || 'desconhecido');
+}
+
+function hashIdentificador(valor) {
+  return crypto.createHash('sha256').update(String(valor || '')).digest('hex');
+}
+
+async function consumirLimiteDistribuido(namespace, identificador, maximo, janelaMs) {
+  const database = await garantirDb();
+  const agora = Date.now();
+  const janela = Math.floor(agora / janelaMs);
+  const expiraEm = (janela + 1) * janelaMs;
+  const chave = `${namespace}:${janela}:${hashIdentificador(identificador)}`;
+
+  await sqlRun(database, `
+    INSERT INTO limites_acesso (chave, quantidade, expira_em)
+    VALUES (?, 1, ?)
+    ON CONFLICT(chave) DO UPDATE SET quantidade = quantidade + 1
+  `, [chave, expiraEm]);
+
+  const registro = await sqlGet(
+    database,
+    'SELECT quantidade FROM limites_acesso WHERE chave = ?',
+    [chave]
+  );
+
+  if (Math.random() < 0.02) {
+    sqlRun(database, 'DELETE FROM limites_acesso WHERE expira_em < ?', [agora])
+      .catch(erro => console.error('Erro ao limpar limites expirados:', erro));
+  }
+
+  return {
+    permitido: Number(registro?.quantidade || 0) <= maximo,
+    restante: Math.max(0, maximo - Number(registro?.quantidade || 0)),
+    retryAfter: Math.max(1, Math.ceil((expiraEm - agora) / 1000))
+  };
+}
+
+function responderLimiteExcedido(res, limite) {
+  res.setHeader('Retry-After', String(limite.retryAfter));
+  return res.status(429).json({
+    erro: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.'
+  });
+}
+
+async function limitarLogin(req, res, next) {
+  try {
+    const ip = identificadorCliente(req);
+    const login = String(req.body?.usuario || '').trim().toLowerCase() || 'sem-login';
+    const porCredencial = await consumirLimiteDistribuido('login-credencial', `${ip}:${login}`, 8, 15 * 60 * 1000);
+    if (!porCredencial.permitido) return responderLimiteExcedido(res, porCredencial);
+    const porIp = await consumirLimiteDistribuido('login-ip', ip, 50, 15 * 60 * 1000);
+    if (!porIp.permitido) return responderLimiteExcedido(res, porIp);
+    next();
+  } catch (erro) {
+    console.error('Rate limit de login indisponível:', erro);
+    next();
+  }
+}
+
+async function limitarMutacoesApi(req, res, next) {
+  if (METODOS_SEGUROS.has(req.method)) return next();
+  try {
+    const identificador = req.usuarioLogado?.id || identificadorCliente(req);
+    const limite = await consumirLimiteDistribuido('api-mutacao', identificador, 120, 5 * 60 * 1000);
+    res.setHeader('X-RateLimit-Remaining', String(limite.restante));
+    if (!limite.permitido) return responderLimiteExcedido(res, limite);
+    next();
+  } catch (erro) {
+    console.error('Rate limit de mutações indisponível:', erro);
+    next();
+  }
+}
+
 
 // ============================================================
 // EXPRESS
@@ -247,6 +337,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   next();
 });
 
@@ -260,6 +351,45 @@ app.use(
   })
 
 );
+
+const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function origemEsperada(req) {
+  const protocolo = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
+    .split(',')[0]
+    .trim();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '')
+    .split(',')[0]
+    .trim();
+  return host ? `${protocolo}://${host}` : '';
+}
+
+function origensExtrasPermitidas() {
+  return String(process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(origem => origem.trim())
+    .filter(Boolean);
+}
+
+function protegerMesmaOrigem(req, res, next) {
+  const origem = String(req.headers.origin || '').trim();
+  const siteOrigem = String(req.headers['sec-fetch-site'] || '').toLowerCase();
+  const permitidas = new Set([origemEsperada(req), ...origensExtrasPermitidas()].filter(Boolean));
+
+  res.vary('Origin');
+
+  if (origem && !permitidas.has(origem)) {
+    return res.status(403).json({ erro: 'Origem não autorizada.' });
+  }
+
+  if (!METODOS_SEGUROS.has(req.method) && siteOrigem === 'cross-site') {
+    return res.status(403).json({ erro: 'Requisição externa bloqueada.' });
+  }
+
+  next();
+}
+
+app.use('/api', protegerMesmaOrigem);
 
 
 app.use(
@@ -799,6 +929,8 @@ function criarCookie(
 app.post(
 
   '/api/login',
+
+  limitarLogin,
 
   async (
     req,
@@ -1395,6 +1527,8 @@ app.use(
 
 );
 
+app.use('/api', limitarMutacoesApi);
+
 // Dados operacionais nunca devem ser reaproveitados pelo cache do navegador
 // ou por uma camada intermediária da hospedagem.
 app.use('/api', (req, res, next) => {
@@ -1662,6 +1796,8 @@ app.delete('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
 app.get(
 
   '/api/usuarios',
+
+  exigirAdmin,
 
   async (
     req,
@@ -3151,6 +3287,8 @@ app.get(
 
   '/api/protocolos/proximo-numero',
 
+  exigirEmissor,
+
   async (
     req,
     res
@@ -4025,7 +4163,7 @@ app.put(
 // CONFIRMAR ENTREGA
 // ============================================================
 
-app.get('/api/protocolos/:id/etiqueta', async (req, res) => {
+app.get('/api/protocolos/:id/etiqueta', exigirEmissor, async (req, res) => {
   try {
     const database = await garantirDb();
     const id = Number(req.params.id);
@@ -4373,6 +4511,8 @@ app.put(
 app.put(
 
   '/api/protocolos/:id/cancelar',
+
+  exigirEmissor,
 
   async (
     req,
