@@ -3488,7 +3488,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   <div class="modal-card qr-reader-card" role="dialog" aria-modal="true" aria-labelledby="qrReaderTitle">
     <div class="modal-head"><div><div class="kicker">Conferência final</div><h3 id="qrReaderTitle">Escanear etiqueta do envelope</h3></div><button class="modal-close" type="button" onclick="cancelarLeituraQr()" aria-label="Cancelar leitura">×</button></div>
     <div class="modal-body"><video id="qrReaderVideo" class="qr-reader-video" playsinline muted></video><p id="qrReaderStatus" class="qr-reader-guide">Aponte a câmera para o QR Code da etiqueta.</p></div>
-    <div class="modal-actions"><button class="primary secondary" type="button" onclick="cancelarLeituraQr()">Cancelar</button></div>
+    <div class="modal-actions"><button class="primary secondary" type="button" onclick="cancelarLeituraQr()">Cancelar</button><button class="primary secondary" type="button" onclick="usarNumeroProtocoloNaConferencia()">Não consigo escanear</button></div>
   </div>
 </div>
 
@@ -6275,6 +6275,7 @@ let qrReaderStream=null;
 let qrReaderResolve=null;
 let qrReaderAtivo=false;
 let qrScannerInstance=null;
+const CONFIRMACAO_MANUAL_PROTOCOLO='__HIPERION_CONFIRMAR_NUMERO__';
 
 function encerrarLeituraQr(valor=null){
   qrReaderAtivo=false;
@@ -6291,6 +6292,7 @@ function encerrarLeituraQr(valor=null){
 }
 
 function cancelarLeituraQr(){encerrarLeituraQr(null)}
+function usarNumeroProtocoloNaConferencia(){encerrarLeituraQr(CONFIRMACAO_MANUAL_PROTOCOLO)}
 
 async function lerQrDaEtiqueta(){
   if(typeof QrScanner==='undefined'){
@@ -6313,8 +6315,8 @@ async function lerQrDaEtiqueta(){
       await qrScannerInstance.start();
     }catch(erro){
       console.error('Erro ao abrir câmera:',erro);
-      encerrarLeituraQr(null);
-      alert('Não foi possível abrir a câmera. Confira a permissão do navegador.');
+      encerrarLeituraQr(CONFIRMACAO_MANUAL_PROTOCOLO);
+      alert('Não foi possível abrir a câmera. Confirme a entrega digitando o número do protocolo.');
     }
   });
 }
@@ -6375,13 +6377,27 @@ async function confirmProtocol(){
   }
 
   let qrCodigo=null;
+  let numeroConfirmacao=null;
   if(r.qrRequired){
-    qrCodigo=await lerQrDaEtiqueta();
-    if(!qrCodigo)return;
-    const qrHash=await sha256Hex(qrCodigo);
-    if(!r.qrHash||qrHash!==r.qrHash){
-      alert(`Etiqueta incorreta. O QR Code lido não pertence ao protocolo ${fmtNum(r.num)}.`);
-      return;
+    const conferencia=await lerQrDaEtiqueta();
+    if(!conferencia)return;
+
+    if(conferencia===CONFIRMACAO_MANUAL_PROTOCOLO){
+      const digitado=await hiperionPrompt({title:'Confirmação de emergência',message:`Digite o número do protocolo que está sendo entregue. Você pode informar ${fmtNum(r.num)} ou ${Number(r.num)}.`,inputLabel:'Número do protocolo',confirmText:'Conferir número',cancelText:'Voltar',type:'warning'});
+      if(digitado===null)return;
+      const numeroLimpo=String(digitado).trim();
+      if(!/^\d+$/.test(numeroLimpo)||Number(numeroLimpo)!==Number(r.num)){
+        alert(`Número incorreto. Digite o protocolo ${fmtNum(r.num)} para confirmar esta entrega.`);
+        return;
+      }
+      numeroConfirmacao=numeroLimpo;
+    }else{
+      qrCodigo=conferencia;
+      const qrHash=await sha256Hex(qrCodigo);
+      if(!r.qrHash||qrHash!==r.qrHash){
+        alert(`Etiqueta incorreta. O QR Code lido não pertence ao protocolo ${fmtNum(r.num)}.`);
+        return;
+      }
     }
   }
 
@@ -6397,6 +6413,7 @@ async function confirmProtocol(){
     assinatura:signedData,
     entregue_em_local:entregueEmLocal,
     qr_codigo:qrCodigo,
+    protocolo_numero_confirmacao:numeroConfirmacao,
     email_destinatarios:emailDestinatarios
   };
 
@@ -6414,6 +6431,7 @@ async function confirmProtocol(){
             assinatura:signedData,
             entregue_em_local:entregueEmLocal,
             qr_codigo:qrCodigo,
+            protocolo_numero_confirmacao:numeroConfirmacao,
             email_destinatarios:emailDestinatarios
           })
         }

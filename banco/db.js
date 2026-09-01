@@ -187,6 +187,8 @@ adicionarColunaSeNaoExistir('protocolos', 'qr_token', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'qr_obrigatorio', 'INTEGER NOT NULL DEFAULT 0');
 adicionarColunaSeNaoExistir('protocolos', 'qr_confirmado_em', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'qr_confirmado_por', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'confirmacao_entrega_metodo', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'confirmacao_numero_digitado', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'email_destinatarios', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'email_status', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'email_enviado_em', 'TEXT');

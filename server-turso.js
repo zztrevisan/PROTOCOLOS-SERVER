@@ -153,6 +153,8 @@ async function garantirEstruturaOperacional(conexao) {
   await adicionarColunaTurso(conexao, 'protocolos', 'qr_obrigatorio', 'INTEGER NOT NULL DEFAULT 0');
   await adicionarColunaTurso(conexao, 'protocolos', 'qr_confirmado_em', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'qr_confirmado_por', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'confirmacao_entrega_metodo', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'confirmacao_numero_digitado', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'email_destinatarios', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'email_status', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'email_enviado_em', 'TEXT');
@@ -4235,6 +4237,7 @@ app.put(
         assinatura,
         entregue_em_local,
         qr_codigo,
+        protocolo_numero_confirmacao,
         email_destinatarios
 
       } =
@@ -4271,7 +4274,7 @@ app.put(
           .json({
 
             erro:
-              'Nome, assinatura e conferência do QR Code são obrigatórios.'
+              'Nome e assinatura são obrigatórios.'
 
           });
 
@@ -4363,9 +4366,22 @@ app.put(
       }
 
       const qrEsperado = `HIPERION:${protocolo.id}:${protocolo.qr_token}`;
-      if (Number(protocolo.qr_obrigatorio) === 1 && (!protocolo.qr_token || String(qr_codigo) !== qrEsperado)) {
-        return res.status(400).json({ erro: 'O QR Code não corresponde a este protocolo.' });
+      const qrRecebidoBuffer = Buffer.from(String(qr_codigo || ''));
+      const qrEsperadoBuffer = Buffer.from(qrEsperado);
+      const qrValido = Boolean(
+        qr_codigo &&
+        protocolo.qr_token &&
+        qrRecebidoBuffer.length === qrEsperadoBuffer.length &&
+        crypto.timingSafeEqual(qrRecebidoBuffer, qrEsperadoBuffer)
+      );
+      const numeroDigitado = String(protocolo_numero_confirmacao ?? '').trim();
+      const numeroValido = /^\d+$/.test(numeroDigitado) && Number(numeroDigitado) === Number(protocolo.numero);
+
+      if (Number(protocolo.qr_obrigatorio) === 1 && !qrValido && !numeroValido) {
+        return res.status(400).json({ erro: 'Escaneie o QR Code ou digite o número correto do protocolo.' });
       }
+
+      const metodoConfirmacao = qrValido ? 'qr_code' : (numeroValido ? 'numero_protocolo' : 'nao_exigida');
 
       const destinatarios = normalizarDestinatarios(email_destinatarios);
 
@@ -4438,6 +4454,10 @@ app.put(
 
             qr_confirmado_por = ?,
 
+            confirmacao_entrega_metodo = ?,
+
+            confirmacao_numero_digitado = ?,
+
             email_destinatarios = ?,
 
             email_status = ?
@@ -4458,6 +4478,10 @@ app.put(
           new Date().toISOString(),
 
           req.usuarioLogado.nome,
+
+          metodoConfirmacao,
+
+          numeroValido ? numeroDigitado : null,
 
           JSON.stringify(destinatarios),
 

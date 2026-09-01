@@ -606,6 +606,9 @@ async function sincronizarFila(){
                   qr_codigo:
                     item.qr_codigo,
 
+                  protocolo_numero_confirmacao:
+                    item.protocolo_numero_confirmacao,
+
                   email_destinatarios:
                     item.email_destinatarios
 
