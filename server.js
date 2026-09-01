@@ -1129,6 +1129,23 @@ app.delete('/api/clientes/:id', exigirGerenciaDeClientes, (req, res) => {
 // USUÁRIOS
 // ============================================================
 
+app.get('/api/usuarios/entregadores', (req, res) => {
+  try {
+    const usuarios = db.prepare(`
+      SELECT id, nome, departamento, perfil, ativo
+      FROM usuarios
+      WHERE ativo = 1
+        AND perfil IN ('admin', 'entregador')
+      ORDER BY nome
+    `).all();
+
+    res.json(usuarios);
+  } catch (erro) {
+    console.error('Erro ao buscar entregadores:', erro);
+    res.status(500).json({ erro: 'Erro ao buscar responsáveis pela entrega.' });
+  }
+});
+
 app.get(
   '/api/usuarios',
   exigirAdmin,

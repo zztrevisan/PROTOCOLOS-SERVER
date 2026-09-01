@@ -1793,6 +1793,27 @@ app.delete('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
 // LISTAR USUÁRIOS
 // ============================================================
 
+app.get('/api/usuarios/entregadores', async (req, res) => {
+  try {
+    const database = await garantirDb();
+    const usuarios = await sqlAll(
+      database,
+      `
+        SELECT id, nome, departamento, perfil, ativo
+        FROM usuarios
+        WHERE ativo = 1
+          AND perfil IN ('admin', 'entregador')
+        ORDER BY nome
+      `
+    );
+
+    res.json(usuarios);
+  } catch (erro) {
+    console.error('Erro ao buscar entregadores:', erro);
+    res.status(500).json({ erro: 'Erro ao buscar responsáveis pela entrega.' });
+  }
+});
+
 app.get(
 
   '/api/usuarios',

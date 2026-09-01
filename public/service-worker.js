@@ -1,10 +1,10 @@
 // ============================================================
 // HIPERION PROTOCOLOS - SERVICE WORKER
-// V15
+// V16
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v69-local-html-sync';
+  'hiperion-protocolos-v70-user-lists';
 
 
 const APP_SHELL = [

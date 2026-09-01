@@ -7299,8 +7299,13 @@ function mapearUsuariosServidor(dados){
 
 
 async function carregarUsuariosDoServidor(){
+  // Empresas e responsáveis são dados independentes. Uma falha em uma lista
+  // não deve impedir a outra de aparecer na nova solicitação.
+  await carregarEmpresas().catch(erro=>console.warn('Empresas indisponíveis.',erro));
+
   try{
-    const resposta=await fetch('/api/usuarios');
+    const endpoint=isAdmin()?'/api/usuarios':'/api/usuarios/entregadores';
+    const resposta=await fetch(endpoint,{cache:'no-store'});
 
     if(!resposta.ok){
       throw new Error('Erro ao carregar usuários do servidor.');
@@ -7309,10 +7314,8 @@ async function carregarUsuariosDoServidor(){
     const dados=await resposta.json();
     users=mapearUsuariosServidor(dados);
 
-    await carregarEmpresas();
-
     if(!users.length){
-      throw new Error('Nenhum usuário ativo encontrado no servidor.');
+      throw new Error('Nenhum responsável pela entrega foi encontrado no servidor.');
     }
 
     currentUserId=sessionUser?Number(sessionUser.id):null;
