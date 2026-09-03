@@ -91,3 +91,32 @@ vercel.json         configuração de publicação
 ## Dados e credenciais
 
 Arquivos `.env`, bancos SQLite, tokens e cópias de produção não devem ser enviados ao GitHub. Use `.env.example` apenas como referência de configuração.
+
+
+
+
+## Licença e uso
+
+Este projeto é um software proprietário desenvolvido por **Guilherme Andrade dos Santos Trevisan**.
+
+A disponibilização deste repositório não significa que o software seja open source. O código-fonte é disponibilizado exclusivamente para fins de portfólio, demonstração, avaliação técnica e apresentação comercial.
+
+É proibido utilizar, copiar, modificar, redistribuir, sublicenciar, revender ou incorporar este código em outros projetos sem autorização expressa do autor. O software pode ser licenciado comercialmente para empresas mediante contrato ou autorização específica. A aquisição de uma licença de uso não transfers a propriedade do código-fonte ou da propriedade intelectual do sistema.
+
+**Copyright © 2026 Guilherme Andrade dos Santos Trevisan. Todos os direitos reservados.**
+
+<details>
+<summary><b>Click here for English Version 🇺🇸</b></summary>
+
+<br>
+
+### English
+This project is proprietary software developed by **Guilherme Andrade dos Santos Trevisan**.
+
+Making this repository available does not mean that the software is open source. The source code is provided exclusively for portfolio, demonstration, technical evaluation, and commercial presentation purposes.
+
+Using, copying, modifying, redistributing, sublicensing, reselling, or incorporating this code into other projects without express authorization from the author is strictly prohibited. The software may be commercially licensed to companies under a specific contract or agreement. Acquiring a usage license does not transfer ownership of the source code or intellectual property.
+
+**Copyright © 2026 Guilherme Andrade dos Santos Trevisan. All rights reserved.**
+
+</details>
