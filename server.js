@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const { normalizarDestinatarios, enviarComprovanteEntrega } = require('./lib/email');
+const { normalizarDestinatarios, enviarComprovanteEntrega, enviarNotificacaoNovoProtocolo } = require('./lib/email');
 
 try {
   process.loadEnvFile('.env');
@@ -1160,6 +1160,7 @@ app.get(
             nome,
             departamento,
             perfil,
+            email,
             ativo,
             criado_em,
             usuario,
@@ -1227,6 +1228,7 @@ app.post(
         nome,
         departamento,
         perfil,
+        email,
         usuario,
         senha
       } = req.body;
@@ -1280,6 +1282,12 @@ app.post(
         usuario
           .trim()
           .toLowerCase();
+
+      const emailNormalizado = String(email || '').trim().toLowerCase();
+
+      if (emailNormalizado && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)) {
+        return res.status(400).json({ erro: 'E-mail inválido.' });
+      }
 
       if (
         !/^[a-z0-9._-]{3,30}$/
@@ -1357,6 +1365,7 @@ app.post(
             nome,
             departamento,
             perfil,
+            email,
             usuario,
             senha_hash,
             senha_salt,
@@ -1365,7 +1374,7 @@ app.post(
           )
 
           VALUES (
-            ?, ?, ?, ?, ?, ?, 1
+            ?, ?, ?, ?, ?, ?, ?, 1
           )
         `).run(
 
@@ -1374,6 +1383,8 @@ app.post(
           departamento.trim(),
 
           perfil,
+
+          emailNormalizado || null,
 
           login,
 
@@ -1390,6 +1401,7 @@ app.post(
             nome,
             departamento,
             perfil,
+            email,
             usuario,
             ativo,
             criado_em
@@ -1448,6 +1460,7 @@ app.put(
         nome,
         departamento,
         perfil,
+        email,
         usuario
       } = req.body;
 
@@ -1518,6 +1531,12 @@ app.put(
         usuario
           .trim()
           .toLowerCase();
+
+      const emailNormalizado = String(email || '').trim().toLowerCase();
+
+      if (emailNormalizado && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)) {
+        return res.status(400).json({ erro: 'E-mail inválido.' });
+      }
 
       if (
         !/^[a-z0-9._-]{3,30}$/
@@ -1605,6 +1624,7 @@ app.put(
           nome = ?,
           departamento = ?,
           perfil = ?,
+          email = ?,
           usuario = ?
 
         WHERE id = ?
@@ -1615,6 +1635,8 @@ app.put(
         departamento.trim(),
 
         perfil,
+
+        emailNormalizado || null,
 
         login,
 
@@ -1629,6 +1651,7 @@ app.put(
             nome,
             departamento,
             perfil,
+            email,
             usuario,
             ativo,
             criado_em,
@@ -2284,7 +2307,7 @@ app.get(
 app.post(
   '/api/protocolos',
   exigirEmissor,
-  (req, res) => {
+  async (req, res) => {
 
     const {
       numero,
@@ -2635,12 +2658,58 @@ app.post(
           protocoloId
         );
 
+      let notificacao = { status: 'nao_aplicavel' };
+      const usuarioEntregador = db.prepare(`
+        SELECT nome, email
+        FROM usuarios
+        WHERE ativo = 1
+          AND perfil = 'entregador'
+          AND LOWER(nome) = LOWER(?)
+        ORDER BY id
+        LIMIT 1
+      `).get(String(entregador).trim());
+
+      if (usuarioEntregador) {
+        try {
+          notificacao = await enviarNotificacaoNovoProtocolo({
+            protocolo: protocoloCriado,
+            itens,
+            destinatario: usuarioEntregador.email
+          });
+        } catch (erroNotificacao) {
+          notificacao = { status: 'falhou', erro: erroNotificacao.message };
+        }
+      }
+
+      const notificacaoEnviadaEm = notificacao.status === 'enviado'
+        ? new Date().toISOString()
+        : null;
+
+      db.prepare(`
+        UPDATE protocolos
+        SET notificacao_entregador_destinatario = ?,
+            notificacao_entregador_status = ?,
+            notificacao_entregador_enviada_em = ?,
+            notificacao_entregador_erro = ?
+        WHERE id = ?
+      `).run(
+        usuarioEntregador?.email || null,
+        notificacao.status,
+        notificacaoEnviadaEm,
+        notificacao.erro || null,
+        protocoloId
+      );
+
+      const protocoloComNotificacao = db.prepare(`
+        SELECT * FROM protocolos WHERE id = ?
+      `).get(protocoloId);
+
       res
         .status(201)
         .json(
 
           anexarItens(
-            protocoloCriado
+            protocoloComNotificacao
           )
 
         );

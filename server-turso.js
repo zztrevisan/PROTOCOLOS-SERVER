@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const { normalizarDestinatarios, enviarComprovanteEntrega } = require('./lib/email');
+const { normalizarDestinatarios, enviarComprovanteEntrega, enviarNotificacaoNovoProtocolo } = require('./lib/email');
 
 const app = express();
 
@@ -159,6 +159,11 @@ async function garantirEstruturaOperacional(conexao) {
   await adicionarColunaTurso(conexao, 'protocolos', 'email_status', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'email_enviado_em', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'email_erro', 'TEXT');
+  await adicionarColunaTurso(conexao, 'usuarios', 'email', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'notificacao_entregador_destinatario', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'notificacao_entregador_status', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'notificacao_entregador_enviada_em', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'notificacao_entregador_erro', 'TEXT');
 
   const semQr = await conexao.all(
     "SELECT id FROM protocolos WHERE qr_token IS NULL OR TRIM(qr_token) = ''"
@@ -1845,6 +1850,7 @@ app.get(
               nome,
               departamento,
               perfil,
+              email,
               ativo,
               criado_em,
               usuario,
@@ -1936,6 +1942,7 @@ app.post(
         nome,
         departamento,
         perfil,
+        email,
         usuario,
         senha
 
@@ -1996,6 +2003,12 @@ app.post(
         usuario
           .trim()
           .toLowerCase();
+
+      const emailNormalizado = String(email || '').trim().toLowerCase();
+
+      if (emailNormalizado && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)) {
+        return res.status(400).json({ erro: 'E-mail inválido.' });
+      }
 
       if (
         !/^[a-z0-9._-]{3,30}$/
@@ -2100,6 +2113,7 @@ app.post(
               nome,
               departamento,
               perfil,
+              email,
               usuario,
               senha_hash,
               senha_salt,
@@ -2108,7 +2122,7 @@ app.post(
             )
 
             VALUES (
-              ?, ?, ?, ?, ?, ?, 1
+              ?, ?, ?, ?, ?, ?, ?, 1
             )
           `,
 
@@ -2119,6 +2133,8 @@ app.post(
             departamento.trim(),
 
             perfil,
+
+            emailNormalizado || null,
 
             login,
 
@@ -2156,6 +2172,7 @@ app.post(
                 nome,
                 departamento,
                 perfil,
+                email,
                 usuario,
                 ativo,
                 criado_em
@@ -2185,6 +2202,7 @@ app.post(
                 nome,
                 departamento,
                 perfil,
+                email,
                 usuario,
                 ativo,
                 criado_em
@@ -2270,6 +2288,7 @@ app.put(
         nome,
         departamento,
         perfil,
+        email,
         usuario
 
       } =
@@ -2348,6 +2367,12 @@ app.put(
         usuario
           .trim()
           .toLowerCase();
+
+      const emailNormalizado = String(email || '').trim().toLowerCase();
+
+      if (emailNormalizado && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)) {
+        return res.status(400).json({ erro: 'E-mail inválido.' });
+      }
 
       if (
         !/^[a-z0-9._-]{3,30}$/
@@ -2477,6 +2502,7 @@ app.put(
             nome = ?,
             departamento = ?,
             perfil = ?,
+            email = ?,
             usuario = ?
 
           WHERE id = ?
@@ -2489,6 +2515,8 @@ app.put(
           departamento.trim(),
 
           perfil,
+
+          emailNormalizado || null,
 
           login,
 
@@ -2511,6 +2539,7 @@ app.put(
               nome,
               departamento,
               perfil,
+              email,
               usuario,
               ativo,
               criado_em,
@@ -3870,13 +3899,69 @@ app.post(
 
         );
 
+      let notificacao = { status: 'nao_aplicavel' };
+      const usuarioEntregador = await sqlGet(
+        database,
+        `
+          SELECT nome, email
+          FROM usuarios
+          WHERE ativo = 1
+            AND perfil = 'entregador'
+            AND LOWER(nome) = LOWER(?)
+          ORDER BY id
+          LIMIT 1
+        `,
+        [String(entregador).trim()]
+      );
+
+      if (usuarioEntregador) {
+        try {
+          notificacao = await enviarNotificacaoNovoProtocolo({
+            protocolo: protocoloCriado,
+            itens,
+            destinatario: usuarioEntregador.email
+          });
+        } catch (erroNotificacao) {
+          notificacao = { status: 'falhou', erro: erroNotificacao.message };
+        }
+      }
+
+      const notificacaoEnviadaEm = notificacao.status === 'enviado'
+        ? new Date().toISOString()
+        : null;
+
+      await sqlRun(
+        database,
+        `
+          UPDATE protocolos
+          SET notificacao_entregador_destinatario = ?,
+              notificacao_entregador_status = ?,
+              notificacao_entregador_enviada_em = ?,
+              notificacao_entregador_erro = ?
+          WHERE id = ?
+        `,
+        [
+          usuarioEntregador?.email || null,
+          notificacao.status,
+          notificacaoEnviadaEm,
+          notificacao.erro || null,
+          protocoloId
+        ]
+      );
+
+      const protocoloComNotificacao = await sqlGet(
+        database,
+        'SELECT * FROM protocolos WHERE id = ?',
+        [protocoloId]
+      );
+
 
       res
         .status(201)
         .json(
 
           await anexarItens(
-            protocoloCriado
+            protocoloComNotificacao
           )
 
         );

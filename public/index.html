@@ -3990,6 +3990,12 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
           >
         </div>
 
+        <div class="full">
+          <label>E-mail para notificações</label>
+          <input id="uEmail" type="email" autocomplete="email" placeholder="Ex.: entregas@empresa.com.br">
+          <div class="password-hint">A notificação de nova entrega é enviada somente para usuários com perfil Entregador.</div>
+        </div>
+
         <div>
           <label>Departamento</label>
           <select id="uDept">
@@ -4122,6 +4128,12 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
         <div class="full">
           <label>Nome completo</label>
           <input id="editUserName">
+        </div>
+
+        <div class="full">
+          <label>E-mail para notificações</label>
+          <input id="editUserEmail" type="email" autocomplete="email" placeholder="Ex.: entregas@empresa.com.br">
+          <div class="password-hint">Usado apenas quando este usuário for o entregador selecionado.</div>
         </div>
 
         <div>
@@ -4840,6 +4852,8 @@ function renderUsers(){
             ${esc(u.dept)} · ${esc(roleLabel(u))}
           </small>
 
+          ${u.email?`<small>${esc(u.email)}</small>`:''}
+
           <div class="user-login-line">
             <span class="login-chip">
               👤 ${u.login?esc(u.login):'Sem login'}
@@ -4893,6 +4907,7 @@ async function createUser(){
   const name=$('uName').value.trim();
   const departamento=$('uDept').value;
   const perfil=$('uRole').value;
+  const email=$('uEmail').value.trim().toLowerCase();
   const usuario=$('uLogin').value.trim().toLowerCase();
   const senha=$('uPassword').value;
   const senha2=$('uPassword2').value;
@@ -4909,6 +4924,11 @@ async function createUser(){
       'userCreateFeedback',
       'O login deve ter de 3 a 30 caracteres e usar apenas letras minúsculas, números, ponto, traço ou underline.'
     );
+    return;
+  }
+
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    mostrarFeedback('userCreateFeedback','Digite um e-mail válido para notificações.');
     return;
   }
 
@@ -4934,6 +4954,7 @@ async function createUser(){
         nome:name,
         departamento,
         perfil,
+        email,
         usuario,
         senha
       })
@@ -4946,6 +4967,7 @@ async function createUser(){
     }
 
     $('uName').value='';
+    $('uEmail').value='';
     $('uLogin').value='';
     $('uPassword').value='';
     $('uPassword2').value='';
@@ -4990,6 +5012,7 @@ function editUser(id){
   else if(u.roles.includes('entregador'))perfil='entregador';
 
   $('editUserRole').value=perfil;
+  $('editUserEmail').value=u.email||'';
   $('editUserLogin').value=u.login||'';
 
   mostrarFeedback('editUserFeedback','');
@@ -5005,6 +5028,7 @@ async function salvarEdicaoUsuario(){
   const nome=$('editUserName').value.trim();
   const departamento=$('editUserDept').value;
   const perfil=$('editUserRole').value;
+  const email=$('editUserEmail').value.trim().toLowerCase();
   const usuario=$('editUserLogin').value.trim().toLowerCase();
 
   mostrarFeedback('editUserFeedback','');
@@ -5022,6 +5046,11 @@ async function salvarEdicaoUsuario(){
     return;
   }
 
+  if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    mostrarFeedback('editUserFeedback','Digite um e-mail válido para notificações.');
+    return;
+  }
+
   const botao=$('saveEditUserBtn');
   botao.disabled=true;
   botao.textContent='Salvando...';
@@ -5034,6 +5063,7 @@ async function salvarEdicaoUsuario(){
         nome,
         departamento,
         perfil,
+        email,
         usuario
       })
     });
@@ -5761,9 +5791,17 @@ async function createRequest(){
       throw new Error(dados.erro||'Erro ao criar protocolo.');
     }
 
+    const statusNotificacao=dados.notificacao_entregador_status;
+    const avisoNotificacao={
+      enviado:'O entregador foi avisado por e-mail.',
+      sem_email:'O entregador ainda não tem e-mail cadastrado.',
+      pendente_configuracao:'O protocolo foi criado, mas o envio de e-mail ainda não está configurado.',
+      falhou:'O protocolo foi criado, mas não foi possível avisar o entregador por e-mail.'
+    }[statusNotificacao];
+
     const imprimir=await hiperionConfirm({
       title:`Protocolo ${fmtNum(dados.numero)} criado`,
-      message:'Deseja imprimir agora a etiqueta do envelope?',
+      message:`${avisoNotificacao?`${avisoNotificacao}\n\n`:''}Deseja imprimir agora a etiqueta do envelope?`,
       confirmText:'Imprimir etiqueta',
       cancelText:'Agora não',
       type:'success'
@@ -7308,6 +7346,7 @@ function mapearUsuariosServidor(dados){
       name:u.nome,
       dept:u.departamento,
       roles,
+      email:u.email||'',
       login:u.usuario||'',
       passwordConfigured:Boolean(Number(u.senha_configurada||0)),
       lastLogin:u.ultimo_login||null

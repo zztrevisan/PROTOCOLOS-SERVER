@@ -193,6 +193,11 @@ adicionarColunaSeNaoExistir('protocolos', 'email_destinatarios', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'email_status', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'email_enviado_em', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'email_erro', 'TEXT');
+adicionarColunaSeNaoExistir('usuarios', 'email', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'notificacao_entregador_destinatario', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'notificacao_entregador_status', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'notificacao_entregador_enviada_em', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'notificacao_entregador_erro', 'TEXT');
 
 db.exec(`
   UPDATE protocolos
