@@ -1,10 +1,10 @@
 // ============================================================
 // HIPERION PROTOCOLOS - SERVICE WORKER
-// V20
+// V21
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v74-conditional-delivery-email';
+  'hiperion-protocolos-v75-new-delivery-notice';
 
 
 const APP_SHELL = [
