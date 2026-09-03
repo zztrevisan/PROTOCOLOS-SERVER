@@ -101,7 +101,7 @@ Este projeto é um software proprietário desenvolvido por **Guilherme Andrade d
 
 A disponibilização deste repositório não significa que o software seja open source. O código-fonte é disponibilizado exclusivamente para fins de portfólio, demonstração, avaliação técnica e apresentação comercial.
 
-É proibido utilizar, copiar, modificar, redistribuir, sublicenciar, revender ou incorporar este código em outros projetos sem autorização expressa do autor. O software pode ser licenciado comercialmente para empresas mediante contrato ou autorização específica. A aquisição de uma licença de uso não transfers a propriedade do código-fonte ou da propriedade intelectual do sistema.
+É proibido utilizar, copiar, modificar, redistribuir, sublicenciar, revender ou incorporar este código em outros projetos sem autorização expressa do autor. O software pode ser licenciado comercialmente para empresas mediante contrato ou autorização específica. A aquisição de uma licença de uso não transfere a propriedade do código-fonte ou da propriedade intelectual do sistema.
 
 **Copyright © 2026 Guilherme Andrade dos Santos Trevisan. Todos os direitos reservados.**
 
