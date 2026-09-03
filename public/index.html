@@ -2710,6 +2710,7 @@ body.protocol-preview-mode #printArea .sign img{
   }
 }
 
+.due-dashboard{margin-top:18px}.due-dashboard-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}.due-dashboard-count{min-width:38px;height:38px;border-radius:12px;background:#fff3d6;color:#9a5b00;display:grid;place-items:center;font-weight:900}.due-dashboard-list{display:grid;gap:8px}.due-dashboard-item{display:flex;justify-content:space-between;gap:16px;padding:12px 14px;border:1px solid #e3e9ef;border-radius:12px;background:#fbfcfd}.due-dashboard-item strong,.due-dashboard-item small{display:block}.due-dashboard-item small{margin-top:4px;color:var(--muted)}.due-pill{white-space:nowrap;align-self:center;padding:6px 9px;border-radius:999px;background:#fff3d6;color:#9a5b00;font-size:12px;font-weight:900}.due-pill.tomorrow{background:#ffe2d6;color:#a73c16}@media(max-width:650px){.due-dashboard-item{display:block}.due-pill{display:inline-block;margin-top:9px}}
 </style>
 <style>
 .company-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.72fr);gap:18px}
@@ -3668,6 +3669,13 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
       <p class="hint" id="roleHelp"></p>
       <div class="sync-ok">Sessão autenticada · sistema conectado</div>
     </div>
+  </div>
+  <div class="card due-dashboard">
+    <div class="due-dashboard-head">
+      <div><div class="kicker">Prazos</div><h2>Próximos vencimentos</h2><p class="hint">Documentos que vencem nos próximos 3 dias.</p></div>
+      <div class="due-dashboard-count" id="dueDashboardCount">0</div>
+    </div>
+    <div class="due-dashboard-list" id="dueDashboardList"></div>
   </div>
 </section>
 
@@ -5993,6 +6001,28 @@ function renderDashboard(){
   qa.push(`<button class="primary secondary" onclick="show('completed')">Protocolos entregues</button>`);
   $('quickActions').innerHTML=qa.join('');
   $('roleHelp').textContent=help;
+
+  const hoje=new Date();
+  hoje.setHours(0,0,0,0);
+  const vencimentos=[];
+  scope.forEach(r=>{
+    if(!['Aguardando entrega','Em entrega'].includes(r.status))return;
+    protocolItemsFromRecord(r).forEach(item=>{
+      if(!item.vencimento)return;
+      const partes=String(item.vencimento).split('-').map(Number);
+      if(partes.length!==3||partes.some(x=>!Number.isFinite(x)))return;
+      const data=new Date(partes[0],partes[1]-1,partes[2]);
+      const dias=Math.round((data-hoje)/86400000);
+      if(dias>=1&&dias<=3)vencimentos.push({r,item,dias,data});
+    });
+  });
+  vencimentos.sort((a,b)=>a.data-b.data||Number(a.r.num)-Number(b.r.num));
+  $('dueDashboardCount').textContent=vencimentos.length;
+  $('dueDashboardList').innerHTML=vencimentos.map(({r,item,dias})=>`
+    <div class="due-dashboard-item">
+      <div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(item.descricao)} · ${esc(formatDueDate(item.vencimento))} · Entregador ${esc(r.resp)}</small></div>
+      <span class="due-pill ${dias===1?'tomorrow':''}">${dias===1?'Vence amanhã':`Vence em ${dias} dias`}</span>
+    </div>`).join('')||'<div class="empty">Nenhum documento vence nos próximos 3 dias.</div>';
 }
 
 function renderAll(){renderDashboard();renderRequests();renderDeliveries();renderCompleted()}

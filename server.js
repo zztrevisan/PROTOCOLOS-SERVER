@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const { normalizarDestinatarios, enviarComprovanteEntrega, enviarNotificacaoNovoProtocolo } = require('./lib/email');
+const { normalizarDestinatarios, enviarComprovanteEntrega, enviarNotificacaoNovoProtocolo, enviarAlertaVencimentos } = require('./lib/email');
 
 try {
   process.loadEnvFile('.env');
@@ -937,6 +937,77 @@ app.use('/api', limitarMutacoesApi);
 // ============================================================
 // TESTE DO SERVIDOR
 // ============================================================
+
+function dataHojeSaoPaulo() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date());
+}
+
+function cronAutorizado(req) {
+  const segredo = String(process.env.CRON_SECRET || '').trim();
+  if (segredo) return req.headers.authorization === `Bearer ${segredo}`;
+  return /vercel-cron/i.test(String(req.headers['user-agent'] || ''));
+}
+
+app.get('/cron/alertas-vencimentos', async (req, res) => {
+  if (!cronAutorizado(req)) return res.status(401).json({ erro: 'Não autorizado.' });
+
+  try {
+    const hoje = dataHojeSaoPaulo();
+    const itens = db.prepare(`
+      SELECT pi.id AS item_id, pi.descricao, pi.vencimento,
+             p.numero, p.cliente, p.entregador,
+             u.id AS usuario_id, u.nome AS entregador_nome, u.email,
+             CAST(julianday(pi.vencimento) - julianday(?) AS INTEGER) AS dias_restantes
+      FROM protocolo_itens pi
+      INNER JOIN protocolos p ON p.id = pi.protocolo_id
+      INNER JOIN usuarios u ON u.ativo = 1
+        AND u.perfil = 'entregador'
+        AND LOWER(u.nome) = LOWER(p.entregador)
+      WHERE p.status IN ('Aguardando entrega', 'Em entrega')
+        AND COALESCE(p.excluido, 0) = 0
+        AND TRIM(COALESCE(u.email, '')) <> ''
+        AND CAST(julianday(pi.vencimento) - julianday(?) AS INTEGER) BETWEEN 1 AND 3
+        AND NOT EXISTS (
+          SELECT 1 FROM alertas_vencimento_enviados a
+          WHERE a.protocolo_item_id = pi.id AND a.data_referencia = ?
+        )
+      ORDER BY u.id, pi.vencimento, p.numero, pi.ordem
+    `).all(hoje, hoje, hoje);
+
+    const grupos = new Map();
+    for (const item of itens) {
+      if (!grupos.has(item.usuario_id)) grupos.set(item.usuario_id, []);
+      grupos.get(item.usuario_id).push(item);
+    }
+
+    let enviados = 0;
+    const falhas = [];
+    for (const grupo of grupos.values()) {
+      const resultado = await enviarAlertaVencimentos({
+        destinatario: grupo[0].email,
+        nomeEntregador: grupo[0].entregador_nome,
+        itens: grupo
+      });
+      if (resultado.status === 'enviado') {
+        const registrar = db.prepare(`
+          INSERT OR IGNORE INTO alertas_vencimento_enviados
+          (protocolo_item_id, data_referencia, destinatario) VALUES (?, ?, ?)
+        `);
+        for (const item of grupo) registrar.run(item.item_id, hoje, grupo[0].email);
+        enviados += grupo.length;
+      } else {
+        falhas.push({ entregador: grupo[0].entregador_nome, status: resultado.status });
+      }
+    }
+
+    res.json({ ok: falhas.length === 0, data: hoje, itens_encontrados: itens.length, itens_notificados: enviados, falhas });
+  } catch (erro) {
+    console.error('Erro nos alertas de vencimento:', erro);
+    res.status(500).json({ erro: 'Erro ao processar alertas de vencimento.' });
+  }
+});
 
 app.get(
   '/teste',

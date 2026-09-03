@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const { normalizarDestinatarios, enviarComprovanteEntrega, enviarNotificacaoNovoProtocolo } = require('./lib/email');
+const { normalizarDestinatarios, enviarComprovanteEntrega, enviarNotificacaoNovoProtocolo, enviarAlertaVencimentos } = require('./lib/email');
 
 const app = express();
 
@@ -144,6 +144,17 @@ async function garantirEstruturaOperacional(conexao) {
     )
   `);
 
+  await conexao.run(`
+    CREATE TABLE IF NOT EXISTS alertas_vencimento_enviados (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      protocolo_item_id INTEGER NOT NULL,
+      data_referencia TEXT NOT NULL,
+      destinatario TEXT NOT NULL,
+      enviado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(protocolo_item_id, data_referencia)
+    )
+  `);
+
   await adicionarColunaTurso(conexao, 'protocolos', 'endereco_empresa', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'cliente_id', 'INTEGER');
   await adicionarColunaTurso(conexao, 'protocolos', 'cliente_box', 'TEXT');
@@ -179,6 +190,7 @@ async function garantirEstruturaOperacional(conexao) {
   await conexao.run('CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes(nome)');
   await conexao.run('CREATE INDEX IF NOT EXISTS idx_clientes_box ON clientes(box)');
   await conexao.run('CREATE INDEX IF NOT EXISTS idx_limites_acesso_expira ON limites_acesso(expira_em)');
+  await conexao.run('CREATE INDEX IF NOT EXISTS idx_alertas_vencimento_data ON alertas_vencimento_enviados(data_referencia)');
 
   const clientesIniciais = [
     ['LIN QIYING', '742'], ['RISCAZERA', '802'],
@@ -1549,6 +1561,79 @@ app.use('/api', (req, res, next) => {
 // ============================================================
 // TESTE TURSO
 // ============================================================
+
+function dataHojeSaoPaulo() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date());
+}
+
+function cronAutorizado(req) {
+  const segredo = String(process.env.CRON_SECRET || '').trim();
+  if (segredo) return req.headers.authorization === `Bearer ${segredo}`;
+  return /vercel-cron/i.test(String(req.headers['user-agent'] || ''));
+}
+
+app.get('/cron/alertas-vencimentos', async (req, res) => {
+  if (!cronAutorizado(req)) return res.status(401).json({ erro: 'Não autorizado.' });
+
+  try {
+    const database = await garantirDb();
+    const hoje = dataHojeSaoPaulo();
+    const itens = await sqlAll(database, `
+      SELECT pi.id AS item_id, pi.descricao, pi.vencimento,
+             p.numero, p.cliente, p.entregador,
+             u.id AS usuario_id, u.nome AS entregador_nome, u.email,
+             CAST(julianday(pi.vencimento) - julianday(?) AS INTEGER) AS dias_restantes
+      FROM protocolo_itens pi
+      INNER JOIN protocolos p ON p.id = pi.protocolo_id
+      INNER JOIN usuarios u ON u.ativo = 1
+        AND u.perfil = 'entregador'
+        AND LOWER(u.nome) = LOWER(p.entregador)
+      WHERE p.status IN ('Aguardando entrega', 'Em entrega')
+        AND COALESCE(p.excluido, 0) = 0
+        AND TRIM(COALESCE(u.email, '')) <> ''
+        AND CAST(julianday(pi.vencimento) - julianday(?) AS INTEGER) BETWEEN 1 AND 3
+        AND NOT EXISTS (
+          SELECT 1 FROM alertas_vencimento_enviados a
+          WHERE a.protocolo_item_id = pi.id AND a.data_referencia = ?
+        )
+      ORDER BY u.id, pi.vencimento, p.numero, pi.ordem
+    `, [hoje, hoje, hoje]);
+
+    const grupos = new Map();
+    for (const item of itens) {
+      if (!grupos.has(item.usuario_id)) grupos.set(item.usuario_id, []);
+      grupos.get(item.usuario_id).push(item);
+    }
+
+    let enviados = 0;
+    const falhas = [];
+    for (const grupo of grupos.values()) {
+      const resultado = await enviarAlertaVencimentos({
+        destinatario: grupo[0].email,
+        nomeEntregador: grupo[0].entregador_nome,
+        itens: grupo
+      });
+      if (resultado.status === 'enviado') {
+        for (const item of grupo) {
+          await sqlRun(database, `
+            INSERT OR IGNORE INTO alertas_vencimento_enviados
+            (protocolo_item_id, data_referencia, destinatario) VALUES (?, ?, ?)
+          `, [item.item_id, hoje, grupo[0].email]);
+        }
+        enviados += grupo.length;
+      } else {
+        falhas.push({ entregador: grupo[0].entregador_nome, status: resultado.status });
+      }
+    }
+
+    res.json({ ok: falhas.length === 0, data: hoje, itens_encontrados: itens.length, itens_notificados: enviados, falhas });
+  } catch (erro) {
+    console.error('Erro nos alertas de vencimento:', erro);
+    res.status(500).json({ erro: 'Erro ao processar alertas de vencimento.' });
+  }
+});
 
 app.get(
 

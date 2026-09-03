@@ -307,6 +307,19 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS alertas_vencimento_enviados (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    protocolo_item_id INTEGER NOT NULL,
+    data_referencia TEXT NOT NULL,
+    destinatario TEXT NOT NULL,
+    enviado_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(protocolo_item_id, data_referencia)
+  );
+  CREATE INDEX IF NOT EXISTS idx_alertas_vencimento_data
+  ON alertas_vencimento_enviados(data_referencia);
+`);
+
+db.exec(`
   CREATE INDEX IF NOT EXISTS idx_clientes_nome
   ON clientes(nome);
 
