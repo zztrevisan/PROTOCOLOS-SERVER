@@ -3998,7 +3998,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
           >
         </div>
 
-        <div class="full">
+        <div class="full hidden" id="uEmailField">
           <label>E-mail para notificações</label>
           <input id="uEmail" type="email" autocomplete="email" placeholder="Ex.: entregas@empresa.com.br">
           <div class="password-hint">A notificação de nova entrega é enviada somente para usuários com perfil Entregador.</div>
@@ -4018,7 +4018,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
 
         <div>
           <label>Perfil</label>
-          <select id="uRole">
+          <select id="uRole" onchange="atualizarVisibilidadeEmailUsuario()">
             <option value="emissor">Emissor</option>
             <option value="entregador">Entregador</option>
           </select>
@@ -4138,7 +4138,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
           <input id="editUserName">
         </div>
 
-        <div class="full">
+        <div class="full" id="editUserEmailField">
           <label>E-mail para notificações</label>
           <input id="editUserEmail" type="email" autocomplete="email" placeholder="Ex.: entregas@empresa.com.br">
           <div class="password-hint">Usado apenas quando este usuário for o entregador selecionado.</div>
@@ -4158,7 +4158,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
 
         <div>
           <label>Perfil</label>
-          <select id="editUserRole">
+          <select id="editUserRole" onchange="atualizarVisibilidadeEmailUsuario(true)">
             <option value="emissor">Emissor</option>
             <option value="entregador">Entregador</option>
             <option value="admin">Administrador geral</option>
@@ -4906,6 +4906,15 @@ function renderUsers(){
   }).join('') || '<div class="empty">Nenhum usuário ativo.</div>';
 }
 
+function atualizarVisibilidadeEmailUsuario(edicao=false){
+  const seletor=$(edicao?'editUserRole':'uRole');
+  const campo=$(edicao?'editUserEmailField':'uEmailField');
+  if(!seletor||!campo)return;
+  const mostrar=seletor.value==='entregador';
+  campo.classList.toggle('hidden',!mostrar);
+  campo.setAttribute('aria-hidden',String(!mostrar));
+}
+
 async function createUser(){
   if(!isAdmin()){
     alert('Somente administrador pode criar usuários.');
@@ -5021,6 +5030,7 @@ function editUser(id){
 
   $('editUserRole').value=perfil;
   $('editUserEmail').value=u.email||'';
+  atualizarVisibilidadeEmailUsuario(true);
   $('editUserLogin').value=u.login||'';
 
   mostrarFeedback('editUserFeedback','');
