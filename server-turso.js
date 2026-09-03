@@ -4007,7 +4007,14 @@ app.post(
 
       if (usuarioEntregador) {
         try {
+          const pendencias = await sqlGet(database,`
+            SELECT COUNT(*) AS total FROM protocolos
+            WHERE LOWER(entregador) = LOWER(?)
+              AND status IN ('Aguardando entrega', 'Em entrega')
+              AND COALESCE(excluido, 0) = 0
+          `, [String(entregador).trim()]);
           notificacao = await enviarNotificacaoNovoProtocolo({
+            totalPendentes: Number(pendencias.total),
             protocolo: protocoloCriado,
             itens,
             destinatario: usuarioEntregador.email

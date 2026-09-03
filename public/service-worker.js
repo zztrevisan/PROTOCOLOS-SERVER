@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v76-email-config-check';
+  'hiperion-protocolos-v77-email-layout';
 
 
 const APP_SHELL = [

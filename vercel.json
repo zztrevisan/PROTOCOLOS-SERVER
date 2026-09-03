@@ -4,7 +4,8 @@
   "builds": [
     {
       "src": "server-turso.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": { "includeFiles": ["public/index.html"] }
     },
     {
       "src": "public/**",
