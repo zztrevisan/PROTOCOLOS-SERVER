@@ -1680,7 +1680,13 @@ app.get(
 
             ? 'conectado'
 
-            : 'erro'
+            : 'erro',
+
+        email:
+          String(process.env.RESEND_API_KEY || '').trim() &&
+          String(process.env.EMAIL_FROM || '').trim()
+            ? 'configurado'
+            : 'pendente_configuracao'
 
       });
 

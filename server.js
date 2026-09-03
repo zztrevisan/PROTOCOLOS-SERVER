@@ -1027,6 +1027,9 @@ app.get('/health', (req, res) => {
       ok: true,
       servico: 'hiperion-protocolos-interno',
       banco: 'sqlite',
+      email: String(process.env.RESEND_API_KEY || '').trim() && String(process.env.EMAIL_FROM || '').trim()
+        ? 'configurado'
+        : 'pendente_configuracao',
       uptime_segundos: Math.floor(process.uptime())
     });
   } catch (erro) {
