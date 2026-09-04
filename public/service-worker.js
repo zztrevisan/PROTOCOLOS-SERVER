@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v78-delivery-settings';
+  'hiperion-protocolos-v79-settings-menu';
 
 
 const APP_SHELL = [
@@ -282,4 +282,3 @@ self.addEventListener(
 
   }
 );
-
