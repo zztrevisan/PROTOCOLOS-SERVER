@@ -116,6 +116,8 @@ async function adicionarColunaTurso(conexao, tabela, coluna, definicao) {
 }
 
 async function garantirEstruturaOperacional(conexao) {
+  await conexao.run("CREATE TABLE IF NOT EXISTS configuracao_entrega (id INTEGER PRIMARY KEY CHECK (id = 1), regras_json TEXT NOT NULL, alterado_por TEXT NOT NULL, alterado_em TEXT NOT NULL)");
+  await adicionarColunaTurso(conexao,'protocolos','entrega_evidencia_json','TEXT');
   await conexao.run(`
     CREATE TABLE IF NOT EXISTS limites_acesso (
       chave TEXT PRIMARY KEY,
@@ -355,7 +357,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
-  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(self)');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   next();
 });
@@ -1547,6 +1549,9 @@ app.use(
 );
 
 app.use('/api', limitarMutacoesApi);
+const deliveryPolicy = require('./lib/delivery-policy');
+const deliveryDatabase = garantirDb;
+deliveryPolicy.mountDeliveryPolicy(app, { database:deliveryDatabase, exigirAdmin });
 
 // Dados operacionais nunca devem ser reaproveitados pelo cache do navegador
 // ou por uma camada intermediária da hospedagem.
@@ -3259,7 +3264,7 @@ async function anexarItens(
   }
 
 
-  const { qr_token, ...dadosPublicos } = protocolo;
+  const { qr_token, entrega_evidencia_json, ...dadosPublicos } = protocolo;
   const qr_hash = qr_token
     ? crypto.createHash('sha256').update(`HIPERION:${protocolo.id}:${qr_token}`).digest('hex')
     : '';
@@ -4548,6 +4553,12 @@ app.put(
 
       }
 
+      if (protocolo.status === 'Entregue') return res.json(await anexarItens(protocolo));
+      const regrasEntrega = await deliveryPolicy.readPolicy(await deliveryDatabase());
+      let evidenciaEntrega;
+      try { evidenciaEntrega = deliveryPolicy.deliveryEvidence(regrasEntrega, req.body, req.usuarioLogado.id); }
+      catch (error) { return res.status(400).json({erro:error.message}); }
+
       const qrEsperado = `HIPERION:${protocolo.id}:${protocolo.qr_token}`;
       const qrRecebidoBuffer = Buffer.from(String(qr_codigo || ''));
       const qrEsperadoBuffer = Buffer.from(qrEsperado);
@@ -4560,11 +4571,11 @@ app.put(
       const numeroDigitado = String(protocolo_numero_confirmacao ?? '').trim();
       const numeroValido = /^\d+$/.test(numeroDigitado) && Number(numeroDigitado) === Number(protocolo.numero);
 
-      if (Number(protocolo.qr_obrigatorio) === 1 && !qrValido && !numeroValido) {
-        return res.status(400).json({ erro: 'Escaneie o QR Code ou digite o número correto do protocolo.' });
+      if (regrasEntrega.qrRequired && !qrValido && !(regrasEntrega.manualNumberAllowed && numeroValido)) {
+        return res.status(400).json({ erro: regrasEntrega.manualNumberAllowed ? 'Escaneie o QR Code ou digite o número correto do protocolo.' : 'A confirmação exige leitura do QR Code. A alternativa manual está desativada.' });
       }
 
-      const metodoConfirmacao = qrValido ? 'qr_code' : (numeroValido ? 'numero_protocolo' : 'nao_exigida');
+      const metodoConfirmacao = !regrasEntrega.qrRequired ? 'desativada_configuracao' : (qrValido ? 'qr_code' : 'numero_protocolo');
 
       const destinatarios = normalizarDestinatarios(email_destinatarios);
 
@@ -4643,9 +4654,11 @@ app.put(
 
             email_destinatarios = ?,
 
-            email_status = ?
+            entrega_evidencia_json = ?,
 
-          WHERE id = ?
+          email_status = ?
+
+          WHERE id = ? AND status <> 'Entregue'
         `,
 
         [
@@ -4658,17 +4671,19 @@ app.put(
 
           entregueEm,
 
-          new Date().toISOString(),
+          regrasEntrega.qrRequired ? new Date().toISOString() : null,
 
-          req.usuarioLogado.nome,
+          regrasEntrega.qrRequired ? req.usuarioLogado.nome : null,
 
           metodoConfirmacao,
 
-          numeroValido ? numeroDigitado : null,
+          metodoConfirmacao === 'numero_protocolo' ? numeroDigitado : null,
 
           JSON.stringify(destinatarios),
 
-          destinatarios.length ? 'pendente' : 'nao_solicitado',
+          JSON.stringify(evidenciaEntrega),
+
+        destinatarios.length ? 'pendente' : 'nao_solicitado',
 
           id
 

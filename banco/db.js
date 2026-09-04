@@ -441,4 +441,6 @@ if (protocolosAntigos.length > 0) {
 // EXPORTAÇÃO
 // ========================================
 
+db.exec("CREATE TABLE IF NOT EXISTS configuracao_entrega (id INTEGER PRIMARY KEY CHECK (id = 1), regras_json TEXT NOT NULL, alterado_por TEXT NOT NULL, alterado_em TEXT NOT NULL)");
+adicionarColunaSeNaoExistir('protocolos','entrega_evidencia_json','TEXT');
 module.exports = db;

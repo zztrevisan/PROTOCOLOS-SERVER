@@ -1,5 +1,15 @@
 # Hiperion Protocolos
 
+## Configurações de entrega
+
+O menu **Configurações de entrega** é exclusivo de administradores. Permite desativar a localização, exigir GPS para concluir ou aceitar sua ausência com justificativa de 10 a 1.000 caracteres. Também controla a exigência de QR Code e a alternativa pelo número do protocolo. Nome e assinatura permanecem obrigatórios.
+
+Padrão: GPS desligado, QR ligado e número permitido em emergência. As regras são verificadas pelo servidor; uma mudança vale para confirmações e sincronizações posteriores, não altera entregas já registradas. É necessário estar conectado para consultar as regras ao iniciar a confirmação; se a conexão cair depois, a fila preserva a evidência coletada e o servidor a revalida ao sincronizar.
+
+A localização é capturada somente na conclusão, mediante permissão do navegador e HTTPS (ou localhost). Coordenadas, precisão e horários não comprovam presença de forma absoluta. Administradores consultam o registro em **Protocolos entregues → abrir protocolo → Ver registro de localização**. Dados de GPS não são incluídos no comprovante, no e-mail ou na listagem geral. O link opcional para Google Maps transmite as coordenadas ao provedor apenas quando aberto.
+
+Teste isolado das regras: `node --test tests/delivery-settings.test.cjs`. Não usa o banco operacional.
+
 Sistema interno para registrar a emissão, a movimentação e a entrega de documentos da Hiperion Assessoria Contábil.
 
 O fluxo reúne cadastro de empresas, protocolos, etiquetas com QR Code, confirmação de entrega por assinatura e envio de comprovante por e-mail. O acesso é individual e as ações disponíveis variam conforme o perfil do usuário.
