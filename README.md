@@ -133,4 +133,4 @@ Using, copying, modifying, redistributing, sublicensing, reselling, or incorpora
 
 ## Retiradas de documentação
 
-A aba **Retiradas** permite à Legalização solicitar documentos de uma empresa e conferir no escritório o material coletado pelo entregador. Mantém documentos recebidos, faltantes, data e competência separados por empresa, sem emitir protocolo. Consulte [o fluxo e as permissões](docs/retiradas.md).
+Em **Nova solicitação**, todos os perfis podem escolher **Novo protocolo** ou **Nova retirada**. Na lateral, **Acompanhar retiradas** reúne andamento e conferidas, com cartões compactos, busca por empresa/box e GPS conforme configuração. A conferência no escritório continua exclusiva da Legalização e administradores. Consulte [o fluxo e as permissões](docs/retiradas.md).

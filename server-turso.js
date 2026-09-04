@@ -3436,7 +3436,7 @@ app.get(
 
   '/api/protocolos/proximo-numero',
 
-  exigirEmissor,
+  exigirLogin,
 
   async (
     req,
@@ -3517,7 +3517,7 @@ app.post(
 
   '/api/protocolos',
 
-  exigirEmissor,
+  exigirLogin,
 
   async (
     req,
@@ -4375,7 +4375,7 @@ app.put(
 // CONFIRMAR ENTREGA
 // ============================================================
 
-app.get('/api/protocolos/:id/etiqueta', exigirEmissor, async (req, res) => {
+app.get('/api/protocolos/:id/etiqueta', exigirLogin, async (req, res) => {
   try {
     const database = await garantirDb();
     const id = Number(req.params.id);
