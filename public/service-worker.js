@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v79-settings-menu';
+  'hiperion-protocolos-v80-pickups';
 
 
 const APP_SHELL = [
@@ -12,6 +12,7 @@ const APP_SHELL = [
   '/index.html',
   '/offline.js',
   '/delivery-settings.js',
+  '/pickups.js',
   '/vendor/qr-scanner.umd.min.js',
   '/vendor/qr-scanner-worker.min.js'
 ];

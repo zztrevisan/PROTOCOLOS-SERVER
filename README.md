@@ -130,3 +130,7 @@ Using, copying, modifying, redistributing, sublicensing, reselling, or incorpora
 **Copyright © 2026 Guilherme Andrade dos Santos Trevisan. All rights reserved.**
 
 </details>
+
+## Retiradas de documentação
+
+A aba **Retiradas** permite à Legalização solicitar documentos de uma empresa e conferir no escritório o material coletado pelo entregador. Mantém documentos recebidos, faltantes, data e competência separados por empresa, sem emitir protocolo. Consulte [o fluxo e as permissões](docs/retiradas.md).

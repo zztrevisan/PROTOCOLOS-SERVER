@@ -935,6 +935,9 @@ app.use('/api', limitarMutacoesApi);
 const deliveryPolicy = require('./lib/delivery-policy');
 const deliveryDatabase = () => ({get:(sql,...args)=>db.prepare(sql).get(...args),run:(sql,...args)=>db.prepare(sql).run(...args)});
 deliveryPolicy.mountDeliveryPolicy(app, { database:deliveryDatabase, exigirAdmin });
+require('./lib/pickups').mountPickups(app, {database:()=>({
+  ...deliveryDatabase(), all:(sql,...args)=>db.prepare(sql).all(...args)
+})});
 
 
 // ============================================================
