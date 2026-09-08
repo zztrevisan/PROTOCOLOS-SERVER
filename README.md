@@ -103,7 +103,9 @@ vercel.json         configuração de publicação
 Arquivos `.env`, bancos SQLite, tokens e cópias de produção não devem ser enviados ao GitHub. Use `.env.example` apenas como referência de configuração.
 
 
+## Retiradas de documentação
 
+Em **Nova solicitação**, todos os perfis podem escolher **Novo protocolo** ou **Nova retirada**. Na lateral, **Acompanhar retiradas** reúne andamento e conferidas, com cartões compactos, busca por empresa/box e GPS conforme configuração. A conferência no escritório continua exclusiva da Legalização e administradores. Consulte [o fluxo e as permissões](docs/retiradas.md).
 
 ## Licença e uso
 
@@ -130,7 +132,3 @@ Using, copying, modifying, redistributing, sublicensing, reselling, or incorpora
 **Copyright © 2026 Guilherme Andrade dos Santos Trevisan. All rights reserved.**
 
 </details>
-
-## Retiradas de documentação
-
-Em **Nova solicitação**, todos os perfis podem escolher **Novo protocolo** ou **Nova retirada**. Na lateral, **Acompanhar retiradas** reúne andamento e conferidas, com cartões compactos, busca por empresa/box e GPS conforme configuração. A conferência no escritório continua exclusiva da Legalização e administradores. Consulte [o fluxo e as permissões](docs/retiradas.md).
