@@ -3547,9 +3547,10 @@ app.post(
       );
 
     let clienteCadastro = null;
+    let database;
 
     try {
-      const database = await garantirDb();
+      database = await garantirDb();
       clienteCadastro = Number(cliente_id)
         ? await sqlGet(database, `
             SELECT id, nome, box, endereco, numero, complemento,
