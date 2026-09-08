@@ -1,80 +1,77 @@
-# Fluxos do sistema - Hiperion Protocolos
+# Fluxos operacionais
 
-## 1. Acesso
+## Acesso
 
-```text
-Abrir sistema
-  -> informar login e senha
-  -> limite de tentativas e validação da credencial
-  -> criar sessão protegida
-  -> carregar telas permitidas pelo perfil
+```mermaid
+flowchart LR
+    A[Abrir sistema] --> B[Informar credenciais]
+    B --> C{Credencial válida?}
+    C -->|Não| D[Registrar tentativa]
+    C -->|Sim| E[Criar sessão]
+    E --> F[Carregar recursos permitidos]
 ```
 
-Falhas de credencial não criam sessão. Tentativas excessivas recebem bloqueio temporário.
+## Protocolo de entrega
 
-## 2. Emissão e etiqueta
-
-```text
-Selecionar empresa
-  -> informar departamento, entregador e documentos
-  -> revisar vencimentos
-  -> gerar protocolo
-  -> gerar QR Code de identificação
-  -> imprimir etiqueta A4 ou diretamente no envelope
+```mermaid
+flowchart LR
+    A[Nova solicitação] --> B[Selecionar empresa]
+    B --> C[Definir responsável]
+    C --> D[Adicionar documentos]
+    D --> E[Gerar protocolo e QR]
+    E --> F[Imprimir etiqueta]
+    F --> G[Entregar]
+    G --> H[QR ou número de contingência]
+    H --> I[Nome e assinatura]
+    I --> J[Registrar comprovante]
+    J --> K[Enviar e-mail]
 ```
 
-A etiqueta apresenta número do protocolo, nome da empresa, documentos, vencimentos e QR Code. O número do box permanece apenas no ambiente interno.
+A falha do e-mail não desfaz a entrega. O status do envio permanece associado ao protocolo.
 
-## 3. Entrega
+## Retirada de documentos
 
-```text
-Abrir protocolo atribuído
-  -> conferir envelope pelo QR Code
-  -> identificar quem recebeu
-  -> coletar assinatura
-  -> confirmar e-mails do cliente
-  -> registrar entrega
-  -> enviar comprovante
+```mermaid
+flowchart LR
+    A[Nova retirada] --> B[Empresa e documentos]
+    B --> C[Atribuir responsável]
+    C --> D[Entregador recebe pendência]
+    D --> E[Registrar coleta e GPS]
+    E --> F[Legalização recebe aviso]
+    F --> G[Conferir no escritório]
+    G --> H[Registrar recebidos, faltantes e adicionais]
+    H --> I[Finalizar histórico]
 ```
 
-Nome, assinatura e conferência do QR Code são obrigatórios. Se o serviço de e-mail não estiver configurado ou falhar, o estado do envio fica registrado sem apagar a entrega.
+A retirada não gera número de protocolo nem etiqueta. Somente o responsável atribuído registra a coleta; Legalização ou administrador conclui a conferência.
 
-## 4. Cancelamento
+## Cancelamento e exclusão
 
-```text
-Abrir protocolo pendente
-  -> solicitar cancelamento
-  -> informar justificativa
-  -> confirmar
-  -> registrar motivo, responsável e horário
+```mermaid
+flowchart TD
+    A[Protocolo pendente] --> B{Ação}
+    B -->|Cancelar| C[Exigir justificativa]
+    C --> D[Preservar no histórico]
+    B -->|Excluir| E[Ocultar das telas normais]
+    E --> F[Protocolos excluídos]
+    F -->|Restaurar| A
+    F -->|Excluir definitivamente| G[Remover protocolo e itens]
 ```
 
-O protocolo permanece no histórico. O motivo pode ser consultado a partir do status cancelado.
+Exclusão definitiva e exclusão de retiradas são operações exclusivas do administrador.
 
-## 5. Exclusão e restauração
+## Operação offline
 
-```text
-Excluir protocolo
-  -> ocultar das telas normais
-  -> manter em Protocolos excluídos
-  -> restaurar quando necessário
-
-Excluir permanentemente
-  -> confirmar identidade do registro
-  -> remover protocolo e documentos associados
-  -> impedir restauração
+```mermaid
+sequenceDiagram
+    participant U as Usuário
+    participant P as PWA
+    participant A as API
+    U->>P: conclui ação suportada
+    P-->>P: guarda evidência se a conexão cair
+    P->>A: sincroniza quando possível
+    A-->>P: valida regra atual e confirma
+    P-->>U: atualiza o estado real
 ```
 
-A exclusão de empresa é uma operação administrativa permanente. Protocolos históricos vinculados devem continuar preservados conforme a regra atual do sistema.
-
-## 6. Sincronização móvel
-
-```text
-Operação sem conexão
-  -> guardar ação pendente no dispositivo
-  -> detectar retorno da conexão
-  -> sincronizar
-  -> atualizar o estado visível
-```
-
-Conflitos ou falhas permanecem sinalizados para nova tentativa; a interface não deve indicar conclusão antes da confirmação do servidor.
+Retiradas exigem conexão. A fila offline é reservada aos fluxos de protocolo já suportados.

@@ -1,7 +1,7 @@
 {
   "name": "protocolos-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Gestão interna de protocolos, entregas e retiradas da Hiperion.",
   "main": "server-turso.js",
   "scripts": {
     "start": "node server-turso.js",
@@ -10,11 +10,13 @@
     "verify:internal": "node scripts/verificar-interno.js",
     "backup:internal": "node scripts/backup-sqlite.js",
     "migrate:turso-to-sqlite": "node scripts/migrar-turso-para-sqlite.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test tests/*.test.cjs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["protocolos", "documentos", "rastreabilidade"],
+  "author": "Guilherme Andrade dos Santos Trevisan",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": { "node": ">=24" },
   "type": "commonjs",
   "dependencies": {
     "@libsql/client": "^0.17.4",

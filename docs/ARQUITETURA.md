@@ -1,62 +1,73 @@
-# Arquitetura de software - Hiperion Protocolos
+# Arquitetura de software
 
 ## Visão geral
 
-O Hiperion Protocolos é uma aplicação web monolítica em Node.js. A mesma interface atende dois modos de operação: hospedado na Vercel com Turso e interno com SQLite.
+O Hiperion Protocolos é uma aplicação web monolítica em Node.js, com interface PWA e duas opções de persistência. A versão hospedada usa Vercel e Turso; a instalação interna usa SQLite no próprio servidor.
 
-```text
-Usuário
-  -> interface web/PWA
-  -> API Express
-  -> autenticação, RBAC e regras de negócio
-  -> Turso ou SQLite
-  -> Resend quando houver comprovante por e-mail
+```mermaid
+flowchart TB
+    B[Navegador / PWA] -->|HTTPS + cookie de sessão| API[API Express]
+    API --> AUTH[Autenticação, RBAC e validações]
+    AUTH --> ROTAS[Protocolos, retiradas, usuários e empresas]
+    ROTAS --> CLOUD[(Turso)]
+    ROTAS --> LOCAL[(SQLite)]
+    ROTAS --> MAIL[Resend / provedor de e-mail]
+    B --> CACHE[Service worker e fila offline]
+    CACHE --> API
 ```
 
-## Camadas
+## Componentes
 
-### Interface
+| Componente | Função |
+| --- | --- |
+| `public/index.html` | Aplicação principal, formulários, painéis e impressão |
+| `public/offline.js` | Cache e sincronização das operações suportadas |
+| `public/pickups.js` | Interface do fluxo de retiradas |
+| `public/delivery-settings.js` | Regras administrativas de GPS e QR Code |
+| `server-turso.js` | API da instalação hospedada |
+| `server.js` | API da instalação interna |
+| `lib/delivery-policy.js` | Validação da evidência de entrega/coleta |
+| `lib/pickups.js` | Estados, permissões e notificações de retirada |
+| `lib/email.js` | E-mails transacionais |
+| `banco/db.js` | Inicialização e evolução do SQLite |
 
-`public/index.html` concentra layout, estilos e comportamento da aplicação. O service worker oferece recursos de PWA e apoio ao uso móvel. O leitor de QR Code usa biblioteca mantida localmente em `public/vendor`.
+## Domínios de negócio
 
-### Aplicação
+- **Usuários e sessões:** identidade, credenciais, perfil, departamento e expiração.
+- **Empresas:** dados de destino, box e destinatários de comprovantes.
+- **Protocolos:** emissão, itens, QR, entrega, cancelamento e exclusão.
+- **Retiradas:** solicitação, coleta, evidência e conferência documental.
+- **Configurações:** GPS, confirmação manual e exigência de QR Code.
+- **Vencimentos:** itens pendentes e controle de alertas já enviados.
 
-`server-turso.js` é a entrada da nuvem. `server.js` é a entrada do servidor interno. Ambos expõem a interface estática, sessão, permissões e operações de clientes, usuários e protocolos.
+## Autorização
 
-### Dados
+```mermaid
+flowchart LR
+    L[Login válido] --> S[Sessão protegida]
+    S --> P{Perfil e departamento}
+    P -->|Admin| A[Acesso administrativo]
+    P -->|Emissor| E[Emissão]
+    P -->|Entregador| D[Entrega e coleta atribuída]
+    P -->|Legalização| H[Emissão + coleta + conferência]
+```
 
-- `usuarios`: identidade, departamento, perfil e credenciais;
-- `sessoes`: tokens de sessão com expiração;
-- `clientes`: empresas, endereço e e-mails de comprovante;
-- `protocolos`: ciclo de vida, responsáveis, assinatura e auditoria;
-- `protocolo_itens`: documentos e vencimentos vinculados ao protocolo;
-- `limites_acesso`: contadores temporários do rate limit na versão distribuída.
+O servidor decide a autorização em cada rota. As regras de interface servem apenas para orientar o usuário.
 
-### Integrações
+## Persistência e paridade
 
-- **Turso:** banco remoto da versão hospedada;
-- **SQLite:** banco do servidor interno;
-- **Resend:** envio do comprovante após a entrega;
-- **Vercel:** execução e distribuição da versão em nuvem.
+As duas entradas de servidor oferecem os mesmos fluxos, mas usam adaptadores diferentes. Mudanças de regra precisam ser validadas em ambos os ambientes. As migrações são aditivas: colunas e tabelas ausentes são criadas sem apagar registros existentes.
 
-## Autenticação e autorização
+O modo interno exige um único processo gravador por arquivo SQLite. O banco não deve ficar em armazenamento sincronizado ou compartilhamento de rede.
 
-A sessão é identificada por cookie protegido e validada antes das rotas operacionais. As permissões são aplicadas no servidor, não apenas escondidas na interface.
+## Integrações
 
-- Administrador: usuários, configurações e operações administrativas.
-- Emissor: criação e manutenção operacional de protocolos.
-- Entregador: protocolos atribuídos e confirmação de entrega.
-- Exceções de departamento, como Legalização, são tratadas explicitamente nos middlewares existentes.
+- **Turso:** banco remoto da versão hospedada.
+- **Vercel:** execução serverless, arquivos estáticos e cron diário.
+- **Resend:** comprovantes e notificações; pode ser substituído por outro provedor.
+- **Geolocation API:** captura pontual, condicionada à configuração e permissão.
+- **QR Scanner:** biblioteca distribuída localmente para reduzir dependência externa.
 
-## Controles de segurança
+## Limites conhecidos
 
-- senha armazenada como derivação criptográfica com salt;
-- cookies `HttpOnly`, `SameSite=Lax` e `Secure` em produção;
-- validação de origem para alterações da API;
-- rate limit no login e nas mutações autenticadas;
-- cabeçalhos contra sniffing, framing e vazamento de referência;
-- credenciais fornecidas por variáveis de ambiente.
-
-## Decisões e limites atuais
-
-A duplicação entre os dois servidores facilita a operação independente, mas exige validar toda regra nos dois arquivos. A interface em arquivo único reduz a complexidade de implantação, porém aumenta o custo de manutenção. Uma evolução futura pode extrair regras e rotas compartilhadas sem mudar a experiência atual.
+A interface principal e parte das rotas ainda estão concentradas em arquivos grandes. A duplicação dos servidores reduz dependências na implantação, mas aumenta o cuidado necessário para manter paridade. Uma evolução segura deve extrair módulos compartilhados gradualmente e manter testes de contrato para as duas persistências.
