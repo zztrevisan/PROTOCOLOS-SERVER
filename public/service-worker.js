@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v82-request-hub';
+  'hiperion-protocolos-v83-pickups-ux';
 
 
 const APP_SHELL = [
