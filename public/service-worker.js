@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE_NAME =
-  'hiperion-protocolos-v85-protocol-fix';
+  'hiperion-protocolos-v87-legalizacao-hibrida';
 
 
 const APP_SHELL = [

@@ -4002,12 +4002,12 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
         <div class="full hidden" id="uEmailField">
           <label>E-mail para notificações</label>
           <input id="uEmail" type="email" autocomplete="email" placeholder="Ex.: entregas@empresa.com.br">
-          <div class="password-hint">A notificação de nova entrega é enviada somente para usuários com perfil Entregador.</div>
+          <div class="password-hint">Usado para avisos de entregas e, na Legalização, quando uma coleta solicitada for concluída.</div>
         </div>
 
         <div>
           <label>Departamento</label>
-          <select id="uDept">
+          <select id="uDept" onchange="atualizarRegraDepartamentoUsuario()">
             <option>Fiscal</option>
             <option>Legalização</option>
             <option>Contábil</option>
@@ -4017,12 +4017,13 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
           </select>
         </div>
 
-        <div>
+        <div id="uRoleField">
           <label>Perfil</label>
           <select id="uRole" onchange="atualizarVisibilidadeEmailUsuario()">
             <option value="emissor">Emissor</option>
             <option value="entregador">Entregador</option>
           </select>
+          <div class="password-hint" id="uRoleHint"></div>
         </div>
 
         <div class="full">
@@ -4142,12 +4143,12 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
         <div class="full" id="editUserEmailField">
           <label>E-mail para notificações</label>
           <input id="editUserEmail" type="email" autocomplete="email" placeholder="Ex.: entregas@empresa.com.br">
-          <div class="password-hint">Usado apenas quando este usuário for o entregador selecionado.</div>
+          <div class="password-hint">Usado para avisos de entregas e, na Legalização, quando uma coleta solicitada for concluída.</div>
         </div>
 
         <div>
           <label>Departamento</label>
-          <select id="editUserDept">
+          <select id="editUserDept" onchange="atualizarRegraDepartamentoUsuario(true)">
             <option>Fiscal</option>
             <option>Legalização</option>
             <option>Contábil</option>
@@ -4157,13 +4158,14 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
           </select>
         </div>
 
-        <div>
+        <div id="editUserRoleField">
           <label>Perfil</label>
           <select id="editUserRole" onchange="atualizarVisibilidadeEmailUsuario(true)">
             <option value="emissor">Emissor</option>
             <option value="entregador">Entregador</option>
             <option value="admin">Administrador geral</option>
           </select>
+          <div class="password-hint" id="editUserRoleHint"></div>
         </div>
 
         <div class="full">
@@ -4587,7 +4589,7 @@ function brDate(v){if(!v)return '';if(v.includes('/'))return v;let [y,m,d]=v.spl
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function roleLabel(u){
   if(u.roles.includes('admin'))return 'Administrador geral';
-  if(normalizeText(u.dept)==='LEGALIZACAO')return 'Legalização';
+  if(normalizeText(u.dept)==='LEGALIZACAO')return 'Emissor e entregador';
   if(u.roles.includes('entregador'))return 'Entregador';
   return 'Emissor';
 }
@@ -4910,11 +4912,26 @@ function renderUsers(){
 
 function atualizarVisibilidadeEmailUsuario(edicao=false){
   const seletor=$(edicao?'editUserRole':'uRole');
+  const departamento=$(edicao?'editUserDept':'uDept');
   const campo=$(edicao?'editUserEmailField':'uEmailField');
   if(!seletor||!campo)return;
-  const mostrar=seletor.value==='entregador';
+  const mostrar=seletor.value==='entregador'||normalizeText(departamento?.value)==='LEGALIZACAO';
   campo.classList.toggle('hidden',!mostrar);
   campo.setAttribute('aria-hidden',String(!mostrar));
+}
+
+function atualizarRegraDepartamentoUsuario(edicao=false){
+  const departamento=$(edicao?'editUserDept':'uDept');
+  const perfil=$(edicao?'editUserRole':'uRole');
+  const dica=$(edicao?'editUserRoleHint':'uRoleHint');
+  if(!departamento||!perfil)return;
+  const hibrido=normalizeText(departamento.value)==='LEGALIZACAO';
+  if(hibrido)perfil.value='entregador';
+  const opcaoEntregador=perfil.querySelector('option[value="entregador"]');
+  if(opcaoEntregador)opcaoEntregador.textContent=hibrido?'Emissor e entregador':'Entregador';
+  perfil.disabled=hibrido;
+  if(dica)dica.textContent=hibrido?'A Legalização possui automaticamente acesso de emissor e entregador.':'';
+  atualizarVisibilidadeEmailUsuario(edicao);
 }
 
 async function createUser(){
@@ -4925,7 +4942,7 @@ async function createUser(){
 
   const name=$('uName').value.trim();
   const departamento=$('uDept').value;
-  const perfil=$('uRole').value;
+  const perfil=normalizeText(departamento)==='LEGALIZACAO'?'entregador':$('uRole').value;
   const email=$('uEmail').value.trim().toLowerCase();
   const usuario=$('uLogin').value.trim().toLowerCase();
   const senha=$('uPassword').value;
@@ -4984,7 +5001,7 @@ async function createUser(){
     if(!dados){
       throw new Error(resposta.ok
         ? 'O servidor respondeu em um formato inesperado. Recarregue a página e tente novamente.'
-        : 'Não foi possível gerar o protocolo agora. O servidor não concluiu a solicitação.');
+        : 'Não foi possível salvar o usuário agora. O servidor não concluiu a solicitação.');
     }
 
     if(!resposta.ok){
@@ -4996,7 +5013,8 @@ async function createUser(){
     $('uLogin').value='';
     $('uPassword').value='';
     $('uPassword2').value='';
-    $('uPasswordStrength').textContent='';
+  $('uPasswordStrength').textContent='';
+    atualizarRegraDepartamentoUsuario();
     loginNovoUsuarioManual=false;
 
     await carregarUsuariosDoServidor();
@@ -5038,7 +5056,7 @@ function editUser(id){
 
   $('editUserRole').value=perfil;
   $('editUserEmail').value=u.email||'';
-  atualizarVisibilidadeEmailUsuario(true);
+  atualizarRegraDepartamentoUsuario(true);
   $('editUserLogin').value=u.login||'';
 
   mostrarFeedback('editUserFeedback','');
@@ -5053,7 +5071,7 @@ async function salvarEdicaoUsuario(){
   const id=Number($('editUserId').value);
   const nome=$('editUserName').value.trim();
   const departamento=$('editUserDept').value;
-  const perfil=$('editUserRole').value;
+  const perfil=normalizeText(departamento)==='LEGALIZACAO'?'entregador':$('editUserRole').value;
   const email=$('editUserEmail').value.trim().toLowerCase();
   const usuario=$('editUserLogin').value.trim().toLowerCase();
 
@@ -7401,6 +7419,7 @@ function mapearUsuariosServidor(dados){
     let roles=[];
 
     if(u.perfil==='admin')roles=['admin','entregador'];
+    else if(normalizeText(u.departamento)==='LEGALIZACAO')roles=['emissor','entregador'];
     else if(u.perfil==='entregador')roles=['entregador'];
     else roles=['emissor'];
 
@@ -7472,6 +7491,8 @@ function converterUsuarioSessao(u){
 
   if(u.perfil==='admin'){
     roles=['admin','entregador'];
+  }else if(normalizeText(u.departamento)==='LEGALIZACAO'){
+    roles=['emissor','entregador'];
   }else if(u.perfil==='entregador'){
     roles=['entregador'];
   }else{

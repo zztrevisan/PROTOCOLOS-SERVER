@@ -21,8 +21,8 @@ for(const optional of [false,true])test(`Retiradas: permissões, etapas, isolame
   const raw=new DatabaseSync(':memory:');
   raw.exec(`CREATE TABLE clientes(id INTEGER PRIMARY KEY,nome TEXT,ativo INTEGER,box TEXT,endereco TEXT,numero TEXT,bairro TEXT,cidade TEXT,uf TEXT);INSERT INTO clientes(id,nome,ativo,box) VALUES(1,'Empresa Teste',1,'802');
     CREATE TABLE configuracao_entrega(id INTEGER PRIMARY KEY,regras_json TEXT);
-    CREATE TABLE usuarios(id INTEGER PRIMARY KEY,nome TEXT,perfil TEXT,departamento TEXT,ativo INTEGER);
-    INSERT INTO usuarios VALUES(1,'Admin','admin','Administrativo',1),(2,'Legalização','emissor','Legalização',1),(3,'Entregador','entregador','Entregas',1),(4,'Outro entregador','entregador','Entregas',1),(5,'Fiscal','emissor','Fiscal',1);
+    CREATE TABLE usuarios(id INTEGER PRIMARY KEY,nome TEXT,perfil TEXT,departamento TEXT,ativo INTEGER,email TEXT);
+    INSERT INTO usuarios VALUES(1,'Admin','admin','Administrativo',1,'admin@example.com'),(2,'Legalização','emissor','Legalização',1,'legalizacao@example.com'),(3,'Entregador','entregador','Entregas',1,'entregador@example.com'),(4,'Outro entregador','entregador','Entregas',1,'outro@example.com'),(5,'Fiscal','emissor','Fiscal',1,'fiscal@example.com');
     CREATE TABLE protocolos(id INTEGER PRIMARY KEY);`);
   const database=()=>({get:(sql,...args)=>raw.prepare(sql).get(...args),all:(sql,...args)=>raw.prepare(sql).all(...args),run:(sql,...args)=>raw.prepare(sql).run(...args)});
   // Simula banco já publicado antes da coluna de contexto/GPS.
@@ -41,13 +41,13 @@ for(const optional of [false,true])test(`Retiradas: permissões, etapas, isolame
   const emitterRegisters=(await api(2,'/cadastros')).body;
   assert.equal(emitterRegisters.empresas.length,1);
   assert.equal(emitterRegisters.empresas_recentes.length,0);
-  assert.deepEqual(emitterRegisters.entregadores.map(item=>item.id),[3,4]);
+  assert.deepEqual(emitterRegisters.entregadores.map(item=>item.id).sort((a,b)=>a-b),[2,3,4]);
   assert.ok((await api(1,'/cadastros')).body.entregadores.some(item=>item.id===1));
   const request={empresa_id:1,entregador_id:3,documentos:['Contrato','Alvará'],observacao:'Retirar originais'};
   assert.equal((await api(3,'/cadastros')).status,200);
   assert.equal((await api(2,'','POST',{...request,empresa_id:9})).status,400);
   assert.equal((await api(2,'','POST',{...request,entregador_id:1})).status,403);
-  const created=await api(2,'','POST',request);assert.equal(created.status,201,JSON.stringify(created.body));const id=created.body.id;
+  const created=await api(2,'','POST',request);assert.equal(created.status,201,JSON.stringify(created.body));assert.equal(created.body.notificacao,'pendente_configuracao');const id=created.body.id;
   assert.equal((await api(2,'/cadastros')).body.empresas_recentes[0].id,1);
   assert.equal(raw.prepare('SELECT COUNT(*) n FROM protocolos').get().n,0);
   assert.equal((await api(4)).body.length,0);
@@ -60,7 +60,7 @@ for(const optional of [false,true])test(`Retiradas: permissões, etapas, isolame
   raw.prepare('INSERT INTO configuracao_entrega VALUES(1,?)').run(JSON.stringify({gpsMode:'required',qrRequired:true,manualNumberAllowed:false}));
   assert.equal((await api(3,`/${id}/retirar`,'PUT',{})).status,400);
   raw.prepare('UPDATE configuracao_entrega SET regras_json=?').run(JSON.stringify({gpsMode:'off',qrRequired:true,manualNumberAllowed:false}));
-  assert.equal((await api(3,`/${id}/retirar`,'PUT',{})).status,200);
+  const collected=await api(3,`/${id}/retirar`,'PUT',{});assert.equal(collected.status,200);assert.equal(collected.body.notificacao,'pendente_configuracao');
   assert.equal((await api(3,`/${id}/retirar`,'PUT',{})).status,409);
   assert.equal((await api(3,`/${id}/conferir`,'PUT',{documentos:docs})).status,403);
   assert.equal((await api(2,`/${id}/conferir`,'PUT',{documentos:docs.slice(0,1)})).status,400);

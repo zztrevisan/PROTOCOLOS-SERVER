@@ -1900,9 +1900,10 @@ app.delete('/api/clientes/:id', exigirGerenciaDeClientes, async (req, res) => {
 app.get('/api/usuarios/entregadores', exigirLogin, async (req, res) => {
   try {
     const database = await garantirDb();
+    const acessoLegalizacao = "LOWER(TRIM(departamento)) IN ('legalização','legalizacao')";
     const filtroPerfil = req.usuarioLogado.perfil === 'admin'
-      ? "perfil IN ('admin', 'entregador')"
-      : "perfil = 'entregador'";
+      ? `(perfil IN ('admin', 'entregador') OR ${acessoLegalizacao})`
+      : `(perfil = 'entregador' OR ${acessoLegalizacao})`;
     const usuarios = await sqlAll(
       database,
       `
@@ -2201,6 +2202,8 @@ app.post(
           senha
         );
 
+      const perfilEfetivo = textoNormalizado(departamento) === 'LEGALIZACAO' ? 'entregador' : perfil;
+
 
       const resultado =
         await sqlRun(
@@ -2232,7 +2235,7 @@ app.post(
 
             departamento.trim(),
 
-            perfil,
+            perfilEfetivo,
 
             emailNormalizado || null,
 
@@ -2614,7 +2617,7 @@ app.put(
 
           departamento.trim(),
 
-          perfil,
+          textoNormalizado(departamento) === 'LEGALIZACAO' ? 'entregador' : perfil,
 
           emailNormalizado || null,
 
@@ -3597,10 +3600,10 @@ app.post(
     }
 
     const usuarioResponsavel = await sqlGet(database, `
-      SELECT id, perfil
+      SELECT id, perfil, departamento
       FROM usuarios
       WHERE ativo = 1
-        AND perfil IN ('admin', 'entregador')
+        AND (perfil IN ('admin', 'entregador') OR LOWER(TRIM(departamento)) IN ('legalização','legalizacao'))
         AND LOWER(nome) = LOWER(?)
       ORDER BY id
       LIMIT 1
@@ -4023,7 +4026,7 @@ app.post(
           SELECT nome, email
           FROM usuarios
           WHERE ativo = 1
-            AND perfil IN ('admin', 'entregador')
+            AND (perfil IN ('admin', 'entregador') OR LOWER(TRIM(departamento)) IN ('legalização','legalizacao'))
             AND LOWER(nome) = LOWER(?)
           ORDER BY id
           LIMIT 1

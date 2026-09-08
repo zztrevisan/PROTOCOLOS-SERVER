@@ -846,7 +846,10 @@ function exigirEmissor(
       'admin' &&
 
     perfil !==
-      'emissor'
+      'emissor' &&
+
+    textoNormalizado(req.usuarioLogado?.departamento) !==
+      'LEGALIZACAO'
   ) {
 
     return res
@@ -880,7 +883,10 @@ function exigirEntregador(
       'admin' &&
 
     perfil !==
-      'entregador'
+      'entregador' &&
+
+    textoNormalizado(req.usuarioLogado?.departamento) !==
+      'LEGALIZACAO'
   ) {
 
     return res
@@ -1211,9 +1217,10 @@ app.delete('/api/clientes/:id', exigirGerenciaDeClientes, (req, res) => {
 
 app.get('/api/usuarios/entregadores', exigirLogin, (req, res) => {
   try {
+    const acessoLegalizacao = "LOWER(TRIM(departamento)) IN ('legalização','legalizacao')";
     const filtroPerfil = req.usuarioLogado.perfil === 'admin'
-      ? "perfil IN ('admin', 'entregador')"
-      : "perfil = 'entregador'";
+      ? `(perfil IN ('admin', 'entregador') OR ${acessoLegalizacao})`
+      : `(perfil = 'entregador' OR ${acessoLegalizacao})`;
     const usuarios = db.prepare(`
       SELECT id, nome, departamento, perfil, ativo
       FROM usuarios
@@ -1441,6 +1448,8 @@ app.post(
           senha
         );
 
+      const perfilEfetivo = textoNormalizado(departamento) === 'LEGALIZACAO' ? 'entregador' : perfil;
+
       const resultado =
         db.prepare(`
           INSERT INTO usuarios (
@@ -1465,7 +1474,7 @@ app.post(
 
           departamento.trim(),
 
-          perfil,
+          perfilEfetivo,
 
           emailNormalizado || null,
 
@@ -1617,6 +1626,8 @@ app.put(
 
       const emailNormalizado = String(email || '').trim().toLowerCase();
 
+      const perfilEfetivo = textoNormalizado(departamento) === 'LEGALIZACAO' ? 'entregador' : perfil;
+
       if (emailNormalizado && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)) {
         return res.status(400).json({ erro: 'E-mail inválido.' });
       }
@@ -1717,7 +1728,7 @@ app.put(
 
         departamento.trim(),
 
-        perfil,
+        perfilEfetivo,
 
         emailNormalizado || null,
 
@@ -2450,10 +2461,10 @@ app.post(
     }
 
     const usuarioResponsavel = db.prepare(`
-      SELECT id, perfil
+      SELECT id, perfil, departamento
       FROM usuarios
       WHERE ativo = 1
-        AND perfil IN ('admin', 'entregador')
+        AND (perfil IN ('admin', 'entregador') OR LOWER(TRIM(departamento)) IN ('legalização','legalizacao'))
         AND LOWER(nome) = LOWER(?)
       ORDER BY id
       LIMIT 1
@@ -2762,7 +2773,7 @@ app.post(
         SELECT nome, email
         FROM usuarios
         WHERE ativo = 1
-          AND perfil IN ('admin', 'entregador')
+          AND (perfil IN ('admin', 'entregador') OR LOWER(TRIM(departamento)) IN ('legalização','legalizacao'))
           AND LOWER(nome) = LOWER(?)
         ORDER BY id
         LIMIT 1
