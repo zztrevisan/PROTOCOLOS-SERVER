@@ -3633,9 +3633,9 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   <button class="menu-btn" data-view="history" data-access="operational" onclick="show('history',this)">Histórico</button>
   <button class="menu-btn" id="managementMenuButton" data-view="management" data-access="manager,admin" onclick="show('management',this)">Gestão do setor</button>
 
-  <div class="menu-section-title admin-only">Administração</div>
-  <button class="menu-btn" data-view="deleted" data-access="admin" onclick="show('deleted',this)">Protocolos excluídos</button>
-  <button class="menu-btn" data-view="users" data-access="admin" onclick="show('users',this)">Usuários</button>
+  <div class="menu-section-title admin-only" id="adminSectionTitle">Administração</div>
+  <button class="menu-btn" id="deletedMenuButton" data-view="deleted" data-access="admin" onclick="show('deleted',this)">Protocolos excluídos</button>
+  <button class="menu-btn" id="usersMenuButton" data-view="users" data-access="admin" onclick="show('users',this)">Usuários</button>
   <div class="sidebar-account no-print">
     <div class="userbox">
       <div class="user user-static">
@@ -4696,6 +4696,7 @@ function isManager(){return Boolean(currentUser().manager)}
 function normalizeText(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase()}
 function isLegalizacao(){return normalizeText(currentUser().dept)==='LEGALIZACAO'}
 function isOperationalAdmin(){return isAdmin()||isLegalizacao()}
+function isAmanda(){return normalizeText(currentUser().login)==='AMANDA'}
 function canPrintLabels(){return ['ADMIN','GUILHERME'].includes(normalizeText(currentUser().login))}
 function hasRole(role){
   const u=currentUser();
@@ -4721,6 +4722,7 @@ function roleLabel(u){
 function initials(name){return name.split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase()}
 
 function canAccess(view){
+  if(isAmanda()&&['deleted','users'].includes(view))return false;
   if(view==='dashboard')return true;
   if(view==='protocol')return true;
   let el=document.querySelector(`[data-view-access]#${view}`);
@@ -4749,6 +4751,7 @@ function applyPermissions(){
     btn.classList.toggle('hidden',!allowed);
   });
   document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('hidden',!isAdmin()));
+  ['adminSectionTitle','deletedMenuButton','usersMenuButton'].forEach(id=>$(id)?.classList.toggle('hidden',isAmanda()));
   document.querySelectorAll('.label-print-only').forEach(el=>el.classList.toggle('hidden',!canPrintLabels()));
   if($('managementMenuButton'))$('managementMenuButton').textContent=isAdmin()?'Gestão geral':'Gestão do setor';
   $('nAssignmentField')?.classList.toggle('hidden',!isManager());
@@ -6517,6 +6520,8 @@ function setProtocolMode(mode){
   const actions=formCard?.querySelector('.actions');
   const printArea=$('printArea');
   const toolbar=$('protocolPreviewToolbar');
+  const recipientField=$('pRec')?.closest('.form > div');
+  if(recipientField)recipientField.style.display=consultation?'none':'';
   document.body.classList.toggle('protocol-consultation-mode',consultation);
 
   if(consultation){

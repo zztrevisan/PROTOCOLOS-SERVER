@@ -1459,6 +1459,13 @@ function exigirAdmin(
 
 // ============================================================
 
+function exigirAdminSensivel(req, res, next) {
+  if (textoNormalizado(req.usuarioLogado?.usuario) === 'AMANDA') {
+    return res.status(403).json({ erro: 'Este recurso é reservado à conta administrativa principal.' });
+  }
+  exigirAdmin(req, res, next);
+}
+
 function exigirEmissor(
   req,
   res,
@@ -1577,7 +1584,7 @@ app.use(
 app.use('/api', limitarMutacoesApi);
 const deliveryPolicy = require('./lib/delivery-policy');
 const deliveryDatabase = garantirDb;
-deliveryPolicy.mountDeliveryPolicy(app, { database:deliveryDatabase, exigirAdmin });
+deliveryPolicy.mountDeliveryPolicy(app, { database:deliveryDatabase, exigirAdmin: exigirAdminSensivel });
 require('./lib/pickups').mountPickups(app, {database:deliveryDatabase});
 
 // Dados operacionais nunca devem ser reaproveitados pelo cache do navegador
@@ -1975,7 +1982,7 @@ app.get(
 
   '/api/usuarios',
 
-  exigirAdmin,
+  exigirAdminSensivel,
 
   async (
     req,
@@ -2423,7 +2430,7 @@ app.put(
 
   '/api/usuarios/:id',
 
-  exigirAdmin,
+  exigirAdminSensivel,
 
   async (
     req,
@@ -2758,7 +2765,7 @@ app.put(
 
   '/api/usuarios/:id/senha',
 
-  exigirAdmin,
+  exigirAdminSensivel,
 
   async (
     req,
@@ -2959,7 +2966,7 @@ app.delete(
 
   '/api/usuarios/:id',
 
-  exigirAdmin,
+  exigirAdminSensivel,
 
   async (
     req,
@@ -5312,7 +5319,7 @@ app.get(
 
   '/api/protocolos-excluidos',
 
-  exigirAdmin,
+  exigirAdminSensivel,
 
   async (
     req,
@@ -5415,7 +5422,7 @@ app.put(
 
   '/api/protocolos/:id/restaurar',
 
-  exigirAdmin,
+  exigirAdminSensivel,
 
   async (
     req,
@@ -5597,7 +5604,7 @@ app.delete(
 
   '/api/protocolos/:id/definitivo',
 
-  exigirAdmin,
+  exigirAdminSensivel,
 
   async (
     req,
