@@ -3469,6 +3469,12 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
 .command-actions button:first-child{color:#fff!important;box-shadow:0 8px 20px rgba(var(--command-rgb),.2)}
 @media(max-width:980px){.command-actions-panel{order:initial}}
 @media(max-width:620px){.command-dashboard[data-role="entregador"] .command-metrics{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+.command-due-alert{display:grid;grid-template-columns:54px minmax(180px,1fr) auto 24px;align-items:center;gap:15px;width:100%;margin:0 0 16px;padding:11px 15px 11px 11px;border:1px solid #dce6ec;border-radius:8px 18px 18px 18px;background:#fff;color:#20374b;text-align:left;box-shadow:0 8px 22px rgba(18,48,76,.055);cursor:pointer;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}.command-due-alert:hover{transform:translateY(-1px);border-color:#b8ccd8;box-shadow:0 12px 28px rgba(18,48,76,.09)}.command-due-alert:focus-visible{outline:3px solid rgba(var(--command-rgb),.22);outline-offset:3px}
+.command-calendar-icon{display:grid;grid-template-rows:18px 32px;overflow:hidden;width:52px;height:50px;border:1px solid #cddae3;border-radius:8px;background:#fff;text-align:center;box-shadow:0 4px 10px rgba(18,48,76,.08)}.command-calendar-icon b{display:grid;place-items:center;background:var(--command-accent);color:#fff;font-size:8px;letter-spacing:.09em}.command-calendar-icon strong{display:grid;place-items:center;color:#18364e;font-family:"Space Mono",monospace;font-size:18px}
+.command-due-copy strong,.command-due-copy small{display:block}.command-due-copy strong{font-size:13px;color:#19344b}.command-due-copy small{margin-top:3px;color:#788a9a;font-size:10px;line-height:1.35}.command-due-chips{display:flex;align-items:center;justify-content:flex-end;gap:6px}.due-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 8px;border-radius:8px;background:#f2f6f8;color:#687b8b;font-size:9px;font-weight:750;white-space:nowrap}.due-chip b{font-family:"Space Mono",monospace;font-size:11px}.due-chip.overdue{background:#fff0f1;color:#a23a46}.due-chip.today{background:#fff5e5;color:#9b6314}.due-chip.soon{background:#edf6fb;color:#29789f}.command-due-arrow{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#edf3f6;color:#517083;font-size:12px;font-weight:900}
+.command-due-alert.clear .due-chip.overdue,.command-due-alert.clear .due-chip.today{display:none}.command-due-alert.clear .command-calendar-icon b{background:#2d9870}.command-due-alert.attention{border-color:#ead8b7;background:#fffdf8}.command-due-alert.critical{border-color:#efc7ca;background:#fffafa}.command-due-alert.critical .command-calendar-icon b{background:#bb4653}
+.command-deadlines{scroll-margin-top:100px}.command-deadlines .due-dashboard-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.command-deadlines .due-dashboard-item{margin:0}.command-deadlines .due-pill.overdue{background:#ffe9eb;color:#a83240}.command-deadlines .due-pill.today{background:#fff0d5;color:#995d08}
+@media(max-width:760px){.command-due-alert{grid-template-columns:48px minmax(0,1fr) 22px;gap:11px;padding:10px}.command-calendar-icon{width:46px;height:46px;grid-template-rows:17px 29px}.command-due-chips{grid-column:1/-1;justify-content:flex-start;padding-top:2px;overflow-x:auto}.command-due-arrow{grid-column:3;grid-row:1}.command-deadlines .due-dashboard-list{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -3683,6 +3689,23 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
     </div>
   </header>
 
+  <button class="command-due-alert clear" id="dashDueAlert" type="button" onclick="abrirRadarVencimentos()" aria-live="polite">
+    <span class="command-calendar-icon" aria-hidden="true">
+      <b id="dashCalendarMonth">MÊS</b>
+      <strong id="dashCalendarDay">00</strong>
+    </span>
+    <span class="command-due-copy">
+      <strong id="dashDueHeadline">Prazos em dia</strong>
+      <small id="dashDueDetail">Nenhum documento exige atenção nos próximos dias.</small>
+    </span>
+    <span class="command-due-chips">
+      <span class="due-chip overdue"><b id="dashDueOverdue">0</b> vencidos</span>
+      <span class="due-chip today"><b id="dashDueToday">0</b> hoje</span>
+      <span class="due-chip soon"><b id="dashDueSoon">0</b> próximos</span>
+    </span>
+    <span class="command-due-arrow" aria-hidden="true">↓</span>
+  </button>
+
   <div class="command-metrics" id="dashboardStats">
     <article class="command-metric waiting">
       <span class="command-metric-mark">01</span>
@@ -3728,12 +3751,12 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
     </aside>
   </div>
 
-  <section class="command-deadlines">
+  <section class="command-deadlines" id="dueDashboardSection">
     <div class="command-section-head">
       <div>
         <div class="kicker">Radar de prazos</div>
         <h2>Próximos vencimentos</h2>
-        <p>Documentos que exigem atenção nos próximos três dias.</p>
+        <p>Documentos vencidos, de hoje e dos próximos três dias.</p>
       </div>
       <div class="command-deadline-count"><strong id="dueDashboardCount">0</strong><span>no radar</span></div>
     </div>
@@ -6051,6 +6074,10 @@ function renderDeliveries(){
   }).join('')||`<div class="empty">Nenhuma entrega pendente para ${esc(currentUser().name)}.</div>`;
 }
 
+function abrirRadarVencimentos(){
+  $('dueDashboardSection')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function renderDashboard(){
   const u=currentUser();
   const scope=isOperationalAdmin()?requests:(u.roles.includes('emissor')?visibleRequestsForUser():requests.filter(r=>r.resp===u.name));
@@ -6068,11 +6095,15 @@ function renderDashboard(){
 
   const dashboard=$('dashboard');
   const primeiroNome=String(u.name||'Usuário').trim().split(/\s+/)[0];
-  const horaAtual=new Date().getHours();
+  const agora=new Date();
+  const horaAtual=agora.getHours();
   const saudacao=horaAtual<12?'Bom dia':horaAtual<18?'Boa tarde':'Boa noite';
   $('dashDate').textContent=new Intl.DateTimeFormat('pt-BR',{
     weekday:'long',day:'2-digit',month:'long'
-  }).format(new Date());
+  }).format(agora);
+  $('dashCalendarMonth').textContent=new Intl.DateTimeFormat('pt-BR',{month:'short'})
+    .format(agora).replace('.','').toUpperCase();
+  $('dashCalendarDay').textContent=String(agora.getDate()).padStart(2,'0');
 
   const resumoItem=r=>{
     const itens=protocolItemsFromRecord(r);
@@ -6146,16 +6177,46 @@ function renderDashboard(){
       if(partes.length!==3||partes.some(x=>!Number.isFinite(x)))return;
       const data=new Date(partes[0],partes[1]-1,partes[2]);
       const dias=Math.round((data-hoje)/86400000);
-      if(dias>=1&&dias<=3)vencimentos.push({r,item,dias,data});
+      if(dias<=3)vencimentos.push({r,item,dias,data});
     });
   });
   vencimentos.sort((a,b)=>a.data-b.data||Number(a.r.num)-Number(b.r.num));
+  const vencidos=vencimentos.filter(item=>item.dias<0).length;
+  const vencendoHoje=vencimentos.filter(item=>item.dias===0).length;
+  const proximos=vencimentos.filter(item=>item.dias>=1).length;
+  const alerta=$('dashDueAlert');
+  alerta.className=`command-due-alert ${vencidos||vencendoHoje?'critical':proximos?'attention':'clear'}`;
+  $('dashDueOverdue').textContent=vencidos;
+  $('dashDueToday').textContent=vencendoHoje;
+  $('dashDueSoon').textContent=proximos;
+
+  if(vencidos){
+    $('dashDueHeadline').textContent=`${vencidos} ${vencidos===1?'documento vencido':'documentos vencidos'}`;
+  }else if(vencendoHoje){
+    $('dashDueHeadline').textContent=`${vencendoHoje} ${vencendoHoje===1?'documento vence':'documentos vencem'} hoje`;
+  }else if(proximos){
+    $('dashDueHeadline').textContent=`${proximos} ${proximos===1?'prazo se aproxima':'prazos se aproximam'}`;
+  }else{
+    $('dashDueHeadline').textContent='Prazos em dia';
+  }
+
+  const primeiroVencimento=vencimentos[0];
+  $('dashDueDetail').textContent=primeiroVencimento
+    ? `${fmtNum(primeiroVencimento.r.num)} · ${primeiroVencimento.r.cliente} · ${primeiroVencimento.item.descricao}`
+    : 'Nenhum documento exige atenção nos próximos dias.';
   $('dueDashboardCount').textContent=vencimentos.length;
-  $('dueDashboardList').innerHTML=vencimentos.map(({r,item,dias})=>`
+  $('dueDashboardList').innerHTML=vencimentos.slice(0,8).map(({r,item,dias})=>{
+    const prazo=dias<0
+      ? `<span class="due-pill overdue">Vencido há ${Math.abs(dias)} ${Math.abs(dias)===1?'dia':'dias'}</span>`
+      : dias===0
+        ? '<span class="due-pill today">Vence hoje</span>'
+        : `<span class="due-pill ${dias===1?'tomorrow':''}">${dias===1?'Vence amanhã':`Vence em ${dias} dias`}</span>`;
+    return `
     <div class="due-dashboard-item">
-      <div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(item.descricao)} · ${esc(formatDueDate(item.vencimento))} · Entregador ${esc(r.resp)}</small></div>
-      <span class="due-pill ${dias===1?'tomorrow':''}">${dias===1?'Vence amanhã':`Vence em ${dias} dias`}</span>
-    </div>`).join('')||'<div class="empty">Nenhum documento vence nos próximos 3 dias.</div>';
+      <div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(item.descricao)} · ${esc(formatDueDate(item.vencimento))} · Entregador ${esc(r.resp||'não definido')}</small></div>
+      ${prazo}
+    </div>`;
+  }).join('')||'<div class="empty">Nenhum documento vencido ou próximo do vencimento.</div>';
 }
 
 function renderAll(){renderDashboard();renderRequests();renderDeliveries();renderCompleted()}
