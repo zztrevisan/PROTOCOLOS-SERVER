@@ -194,10 +194,27 @@ adicionarColunaSeNaoExistir('protocolos', 'email_status', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'email_enviado_em', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'email_erro', 'TEXT');
 adicionarColunaSeNaoExistir('usuarios', 'email', 'TEXT');
+adicionarColunaSeNaoExistir('usuarios', 'gestor_setor', 'INTEGER NOT NULL DEFAULT 0');
+adicionarColunaSeNaoExistir('protocolos', 'atribuido_a', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'atribuido_por', 'TEXT');
+adicionarColunaSeNaoExistir('protocolos', 'atribuido_em', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'notificacao_entregador_destinatario', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'notificacao_entregador_status', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'notificacao_entregador_enviada_em', 'TEXT');
 adicionarColunaSeNaoExistir('protocolos', 'notificacao_entregador_erro', 'TEXT');
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS protocolo_atribuicoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    protocolo_id INTEGER NOT NULL,
+    atribuido_a TEXT NOT NULL,
+    atribuido_por TEXT NOT NULL,
+    atribuido_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(protocolo_id) REFERENCES protocolos(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_atribuicoes_protocolo
+  ON protocolo_atribuicoes(protocolo_id);
+`);
 
 db.exec(`
   UPDATE protocolos

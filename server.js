@@ -359,6 +359,7 @@ function obterUsuarioLogado(req) {
           u.nome,
           u.departamento,
           u.perfil,
+          u.gestor_setor,
           u.usuario,
           u.ativo
 
@@ -439,6 +440,9 @@ function obterUsuarioLogado(req) {
       perfil:
         sessao.perfil,
 
+      gestor_setor:
+        Number(sessao.gestor_setor || 0),
+
       usuario:
         sessao.usuario
 
@@ -502,6 +506,7 @@ app.post(
             nome,
             departamento,
             perfil,
+            gestor_setor,
             usuario,
             senha_hash,
             senha_salt,
@@ -634,6 +639,9 @@ app.post(
 
           perfil:
             cadastro.perfil,
+
+          gestor_setor:
+            Number(cadastro.gestor_setor || 0),
 
           usuario:
             cadastro.usuario
@@ -800,6 +808,10 @@ function exigirLogin(
 
   next();
 
+}
+
+function podeGerirSetor(usuario) {
+  return usuario?.perfil === 'admin' || Number(usuario?.gestor_setor || 0) === 1;
 }
 
 
@@ -1236,6 +1248,23 @@ app.get('/api/usuarios/entregadores', exigirLogin, (req, res) => {
   }
 });
 
+app.get('/api/usuarios/equipe', exigirLogin, (req, res) => {
+  if (!podeGerirSetor(req.usuarioLogado)) {
+    return res.status(403).json({ erro: 'Acesso exclusivo para gestores de setor.' });
+  }
+  const usuarios = db.prepare(`
+    SELECT id, nome, departamento, perfil, gestor_setor, email, usuario, ativo
+    FROM usuarios
+    WHERE ativo = 1 AND (
+      LOWER(TRIM(departamento)) = LOWER(TRIM(?))
+      OR perfil IN ('admin','entregador')
+      OR LOWER(TRIM(departamento)) IN ('legalização','legalizacao')
+    )
+    ORDER BY nome
+  `).all(req.usuarioLogado.departamento);
+  res.json(usuarios);
+});
+
 app.get(
   '/api/usuarios',
   exigirAdmin,
@@ -1250,6 +1279,7 @@ app.get(
             nome,
             departamento,
             perfil,
+            gestor_setor,
             email,
             ativo,
             criado_em,
@@ -1318,6 +1348,7 @@ app.post(
         nome,
         departamento,
         perfil,
+        gestor_setor,
         email,
         usuario,
         senha
@@ -1457,6 +1488,7 @@ app.post(
             nome,
             departamento,
             perfil,
+            gestor_setor,
             email,
             usuario,
             senha_hash,
@@ -1466,7 +1498,7 @@ app.post(
           )
 
           VALUES (
-            ?, ?, ?, ?, ?, ?, ?, 1
+            ?, ?, ?, ?, ?, ?, ?, ?, 1
           )
         `).run(
 
@@ -1475,6 +1507,8 @@ app.post(
           departamento.trim(),
 
           perfilEfetivo,
+
+          gestor_setor ? 1 : 0,
 
           emailNormalizado || null,
 
@@ -1493,6 +1527,7 @@ app.post(
             nome,
             departamento,
             perfil,
+            gestor_setor,
             email,
             usuario,
             ativo,
@@ -1552,6 +1587,7 @@ app.put(
         nome,
         departamento,
         perfil,
+        gestor_setor,
         email,
         usuario
       } = req.body;
@@ -1718,6 +1754,7 @@ app.put(
           nome = ?,
           departamento = ?,
           perfil = ?,
+          gestor_setor = ?,
           email = ?,
           usuario = ?
 
@@ -1729,6 +1766,8 @@ app.put(
         departamento.trim(),
 
         perfilEfetivo,
+
+        gestor_setor ? 1 : 0,
 
         emailNormalizado || null,
 
@@ -1745,6 +1784,7 @@ app.put(
             nome,
             departamento,
             perfil,
+            gestor_setor,
             email,
             usuario,
             ativo,
@@ -2292,6 +2332,9 @@ app.get(
             motivo_cancelamento,
             cancelado_por,
             cancelado_em,
+            atribuido_a,
+            atribuido_por,
+            atribuido_em,
             qr_token,
             qr_obrigatorio,
             qr_confirmado_em,
@@ -2411,6 +2454,7 @@ app.post(
       endereco_empresa,
       departamento,
       entregador,
+      atribuido_a,
       observacao
     } = req.body;
 
@@ -2474,6 +2518,21 @@ app.post(
     }
     if (usuarioResponsavel.perfil === 'admin' && req.usuarioLogado.perfil !== 'admin') {
       return res.status(403).json({ erro: 'Somente administradores podem atribuir uma entrega a outro administrador.' });
+    }
+
+    let responsavelInterno = req.usuarioLogado.nome;
+    if (atribuido_a && String(atribuido_a).trim()) {
+      if (!podeGerirSetor(req.usuarioLogado)) {
+        return res.status(403).json({ erro: 'Somente o gestor pode atribuir a demanda a outra pessoa.' });
+      }
+      const colega = db.prepare(`
+        SELECT nome FROM usuarios
+        WHERE ativo = 1 AND LOWER(nome) = LOWER(?)
+          AND LOWER(TRIM(departamento)) = LOWER(TRIM(?))
+        LIMIT 1
+      `).get(String(atribuido_a).trim(), req.usuarioLogado.departamento);
+      if (!colega) return res.status(400).json({ erro: 'Selecione um funcionário ativo do seu setor.' });
+      responsavelInterno = colega.nome;
     }
 
     for (
@@ -2657,12 +2716,15 @@ app.post(
             observacao,
             status,
             qr_token,
-            qr_obrigatorio
+            qr_obrigatorio,
+            atribuido_a,
+            atribuido_por,
+            atribuido_em
 
           )
 
           VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
           )
         `).run(
 
@@ -2700,7 +2762,13 @@ app.post(
 
           qrToken,
 
-          1
+          1,
+
+          responsavelInterno,
+
+          req.usuarioLogado.nome,
+
+          new Date().toISOString()
 
         );
 
@@ -2709,6 +2777,11 @@ app.post(
           resultado
             .lastInsertRowid
         );
+
+      db.prepare(`
+        INSERT INTO protocolo_atribuicoes (protocolo_id, atribuido_a, atribuido_por, atribuido_em)
+        VALUES (?, ?, ?, ?)
+      `).run(protocoloId, responsavelInterno, req.usuarioLogado.nome, new Date().toISOString());
 
       const inserirItem =
         db.prepare(`
@@ -2888,6 +2961,28 @@ app.post(
 // ============================================================
 // INICIAR / ABRIR ENTREGA
 // ============================================================
+
+app.put(
+  '/api/protocolos/:id/atribuir',
+  exigirLogin,
+  (req, res) => {
+    if (!podeGerirSetor(req.usuarioLogado)) {
+      return res.status(403).json({ erro: 'Acesso exclusivo para gestores de setor.' });
+    }
+    const id = Number(req.params.id);
+    const nome = String(req.body?.atribuido_a || '').trim();
+    const protocolo = db.prepare('SELECT id, departamento FROM protocolos WHERE id = ? AND COALESCE(excluido,0) = 0').get(id);
+    if (!protocolo || (req.usuarioLogado.perfil !== 'admin' && textoNormalizado(protocolo.departamento) !== textoNormalizado(req.usuarioLogado.departamento))) {
+      return res.status(404).json({ erro: 'Protocolo não encontrado no seu setor.' });
+    }
+    const colega = db.prepare(`SELECT nome FROM usuarios WHERE ativo = 1 AND LOWER(nome) = LOWER(?) AND LOWER(TRIM(departamento)) = LOWER(TRIM(?)) LIMIT 1`).get(nome, protocolo.departamento);
+    if (!colega) return res.status(400).json({ erro: 'Selecione um funcionário ativo do setor.' });
+    const agora = new Date().toISOString();
+    db.prepare('UPDATE protocolos SET atribuido_a = ?, atribuido_por = ?, atribuido_em = ? WHERE id = ?').run(colega.nome, req.usuarioLogado.nome, agora, id);
+    db.prepare('INSERT INTO protocolo_atribuicoes (protocolo_id, atribuido_a, atribuido_por, atribuido_em) VALUES (?, ?, ?, ?)').run(id, colega.nome, req.usuarioLogado.nome, agora);
+    res.json({ ok: true, atribuido_a: colega.nome, atribuido_por: req.usuarioLogado.nome, atribuido_em: agora });
+  }
+);
 
 app.put(
   '/api/protocolos/:id/em-entrega',

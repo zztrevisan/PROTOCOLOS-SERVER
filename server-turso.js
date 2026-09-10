@@ -173,10 +173,24 @@ async function garantirEstruturaOperacional(conexao) {
   await adicionarColunaTurso(conexao, 'protocolos', 'email_enviado_em', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'email_erro', 'TEXT');
   await adicionarColunaTurso(conexao, 'usuarios', 'email', 'TEXT');
+  await adicionarColunaTurso(conexao, 'usuarios', 'gestor_setor', 'INTEGER NOT NULL DEFAULT 0');
+  await adicionarColunaTurso(conexao, 'protocolos', 'atribuido_a', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'atribuido_por', 'TEXT');
+  await adicionarColunaTurso(conexao, 'protocolos', 'atribuido_em', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'notificacao_entregador_destinatario', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'notificacao_entregador_status', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'notificacao_entregador_enviada_em', 'TEXT');
   await adicionarColunaTurso(conexao, 'protocolos', 'notificacao_entregador_erro', 'TEXT');
+  await conexao.run(`
+    CREATE TABLE IF NOT EXISTS protocolo_atribuicoes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      protocolo_id INTEGER NOT NULL,
+      atribuido_a TEXT NOT NULL,
+      atribuido_por TEXT NOT NULL,
+      atribuido_em TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await conexao.run('CREATE INDEX IF NOT EXISTS idx_atribuicoes_protocolo ON protocolo_atribuicoes(protocolo_id)');
 
   const semQr = await conexao.all(
     "SELECT id FROM protocolos WHERE qr_token IS NULL OR TRIM(qr_token) = ''"
@@ -763,6 +777,7 @@ async function obterUsuarioLogado(
             u.nome,
             u.departamento,
             u.perfil,
+            u.gestor_setor,
             u.usuario,
             u.ativo
 
@@ -873,6 +888,9 @@ async function obterUsuarioLogado(
 
       perfil:
         sessao.perfil,
+
+      gestor_setor:
+        Number(sessao.gestor_setor || 0),
 
       usuario:
         sessao.usuario
@@ -1006,6 +1024,7 @@ app.post(
               nome,
               departamento,
               perfil,
+              gestor_setor,
               usuario,
               senha_hash,
               senha_salt,
@@ -1159,6 +1178,9 @@ app.post(
 
           perfil:
             cadastro.perfil,
+
+          gestor_setor:
+            Number(cadastro.gestor_setor || 0),
 
           usuario:
             cadastro.usuario
@@ -1401,6 +1423,10 @@ async function exigirLogin(
 
 
 // ============================================================
+
+function podeGerirSetor(usuario) {
+  return usuario?.perfil === 'admin' || Number(usuario?.gestor_setor || 0) === 1;
+}
 
 function exigirAdmin(
   req,
@@ -1922,6 +1948,29 @@ app.get('/api/usuarios/entregadores', exigirLogin, async (req, res) => {
   }
 });
 
+app.get('/api/usuarios/equipe', exigirLogin, async (req, res) => {
+  try {
+    if (!podeGerirSetor(req.usuarioLogado)) {
+      return res.status(403).json({ erro: 'Acesso exclusivo para gestores de setor.' });
+    }
+    const database = await garantirDb();
+    const usuarios = await sqlAll(database, `
+      SELECT id, nome, departamento, perfil, gestor_setor, email, usuario, ativo
+      FROM usuarios
+      WHERE ativo = 1 AND (
+        LOWER(TRIM(departamento)) = LOWER(TRIM(?))
+        OR perfil IN ('admin','entregador')
+        OR LOWER(TRIM(departamento)) IN ('legalização','legalizacao')
+      )
+      ORDER BY nome
+    `, [req.usuarioLogado.departamento]);
+    res.json(usuarios);
+  } catch (erro) {
+    console.error('Erro ao buscar equipe do setor:', erro);
+    res.status(500).json({ erro: 'Erro ao buscar equipe do setor.' });
+  }
+});
+
 app.get(
 
   '/api/usuarios',
@@ -1951,6 +2000,7 @@ app.get(
               nome,
               departamento,
               perfil,
+              gestor_setor,
               email,
               ativo,
               criado_em,
@@ -2043,6 +2093,7 @@ app.post(
         nome,
         departamento,
         perfil,
+        gestor_setor,
         email,
         usuario,
         senha
@@ -2216,6 +2267,7 @@ app.post(
               nome,
               departamento,
               perfil,
+              gestor_setor,
               email,
               usuario,
               senha_hash,
@@ -2225,7 +2277,7 @@ app.post(
             )
 
             VALUES (
-              ?, ?, ?, ?, ?, ?, ?, 1
+              ?, ?, ?, ?, ?, ?, ?, ?, 1
             )
           `,
 
@@ -2236,6 +2288,8 @@ app.post(
             departamento.trim(),
 
             perfilEfetivo,
+
+            gestor_setor ? 1 : 0,
 
             emailNormalizado || null,
 
@@ -2275,6 +2329,7 @@ app.post(
                 nome,
                 departamento,
                 perfil,
+                gestor_setor,
                 email,
                 usuario,
                 ativo,
@@ -2305,6 +2360,7 @@ app.post(
                 nome,
                 departamento,
                 perfil,
+                gestor_setor,
                 email,
                 usuario,
                 ativo,
@@ -2391,6 +2447,7 @@ app.put(
         nome,
         departamento,
         perfil,
+        gestor_setor,
         email,
         usuario
 
@@ -2605,6 +2662,7 @@ app.put(
             nome = ?,
             departamento = ?,
             perfil = ?,
+            gestor_setor = ?,
             email = ?,
             usuario = ?
 
@@ -2618,6 +2676,8 @@ app.put(
           departamento.trim(),
 
           textoNormalizado(departamento) === 'LEGALIZACAO' ? 'entregador' : perfil,
+
+          gestor_setor ? 1 : 0,
 
           emailNormalizado || null,
 
@@ -2642,6 +2702,7 @@ app.put(
               nome,
               departamento,
               perfil,
+              gestor_setor,
               email,
               usuario,
               ativo,
@@ -2745,7 +2806,7 @@ app.put(
       if (
         !senha ||
         senha.length <
-        6
+          6
       ) {
 
         return res
@@ -3373,6 +3434,9 @@ app.get(
               motivo_cancelamento,
               cancelado_por,
               cancelado_em,
+              atribuido_a,
+              atribuido_por,
+              atribuido_em,
               qr_token,
               qr_obrigatorio,
               qr_confirmado_em,
@@ -3538,6 +3602,7 @@ app.post(
       cliente_box,
       departamento,
       entregador,
+      atribuido_a,
       observacao
 
     } =
@@ -3613,6 +3678,21 @@ app.post(
     }
     if (usuarioResponsavel.perfil === 'admin' && req.usuarioLogado.perfil !== 'admin') {
       return res.status(403).json({ erro: 'Somente administradores podem atribuir uma entrega a outro administrador.' });
+    }
+
+    let responsavelInterno = req.usuarioLogado.nome;
+    if (atribuido_a && String(atribuido_a).trim()) {
+      if (!podeGerirSetor(req.usuarioLogado)) {
+        return res.status(403).json({ erro: 'Somente o gestor pode atribuir a demanda a outra pessoa.' });
+      }
+      const colega = await sqlGet(database, `
+        SELECT nome FROM usuarios
+        WHERE ativo = 1 AND LOWER(nome) = LOWER(?)
+          AND LOWER(TRIM(departamento)) = LOWER(TRIM(?))
+        LIMIT 1
+      `, [String(atribuido_a).trim(), req.usuarioLogado.departamento]);
+      if (!colega) return res.status(400).json({ erro: 'Selecione um funcionário ativo do seu setor.' });
+      responsavelInterno = colega.nome;
     }
 
 
@@ -3828,12 +3908,15 @@ app.post(
                     observacao,
                     status,
                     qr_token,
-                    qr_obrigatorio
+                    qr_obrigatorio,
+                    atribuido_a,
+                    atribuido_por,
+                    atribuido_em
 
                   )
 
                   VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                   )
                 `,
 
@@ -3873,7 +3956,13 @@ app.post(
 
                   qrToken,
 
-                  1
+                  1,
+
+                  responsavelInterno,
+
+                  req.usuarioLogado.nome,
+
+                  new Date().toISOString()
 
                 ]
 
@@ -3925,6 +4014,11 @@ app.post(
                 );
 
             }
+
+            await sqlRun(tx, `
+              INSERT INTO protocolo_atribuicoes (protocolo_id, atribuido_a, atribuido_por, atribuido_em)
+              VALUES (?, ?, ?, ?)
+            `, [protocoloId, responsavelInterno, req.usuarioLogado.nome, new Date().toISOString()]);
 
 
             if (
@@ -4159,6 +4253,40 @@ app.post(
 // ============================================================
 // INICIAR ENTREGA
 // ============================================================
+
+app.put(
+
+  '/api/protocolos/:id/atribuir',
+
+  exigirLogin,
+
+  async (req, res) => {
+    try {
+      if (!podeGerirSetor(req.usuarioLogado)) {
+        return res.status(403).json({ erro: 'Acesso exclusivo para gestores de setor.' });
+      }
+      const database = await garantirDb();
+      const id = Number(req.params.id);
+      const nome = String(req.body?.atribuido_a || '').trim();
+      const protocolo = await sqlGet(database, 'SELECT id, departamento FROM protocolos WHERE id = ? AND COALESCE(excluido,0) = 0', [id]);
+      if (!protocolo || (req.usuarioLogado.perfil !== 'admin' && textoNormalizado(protocolo.departamento) !== textoNormalizado(req.usuarioLogado.departamento))) {
+        return res.status(404).json({ erro: 'Protocolo não encontrado no seu setor.' });
+      }
+      const colega = await sqlGet(database, `SELECT nome FROM usuarios WHERE ativo = 1 AND LOWER(nome) = LOWER(?) AND LOWER(TRIM(departamento)) = LOWER(TRIM(?)) LIMIT 1`, [nome, protocolo.departamento]);
+      if (!colega) return res.status(400).json({ erro: 'Selecione um funcionário ativo do setor.' });
+      const agora = new Date().toISOString();
+      await executarTransacao(database, async tx => {
+        await sqlRun(tx, 'UPDATE protocolos SET atribuido_a = ?, atribuido_por = ?, atribuido_em = ? WHERE id = ?', [colega.nome, req.usuarioLogado.nome, agora, id]);
+        await sqlRun(tx, 'INSERT INTO protocolo_atribuicoes (protocolo_id, atribuido_a, atribuido_por, atribuido_em) VALUES (?, ?, ?, ?)', [id, colega.nome, req.usuarioLogado.nome, agora]);
+      });
+      res.json({ ok: true, atribuido_a: colega.nome, atribuido_por: req.usuarioLogado.nome, atribuido_em: agora });
+    } catch (erro) {
+      console.error('Erro ao atribuir protocolo:', erro);
+      res.status(500).json({ erro: 'Erro ao atribuir protocolo.' });
+    }
+  }
+
+);
 
 app.put(
 
