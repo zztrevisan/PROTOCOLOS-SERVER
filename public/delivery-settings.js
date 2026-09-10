@@ -37,7 +37,7 @@
     try{const response=await fetch('/api/configuracao-entrega',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({gpsMode:form.elements.gpsMode.value,qrRequired:form.elements.qrRequired.checked,manualNumberAllowed:form.elements.manualNumberAllowed.checked})});const value=await response.json();if(!response.ok)throw Error(value.erro);dialog.close();alert('Regras de entrega salvas.');}
     catch(e){error.textContent=e.message;}finally{submit.disabled=false;}
   };
-  setInterval(()=>{button.hidden=typeof isAdmin!=='function'||!isAdmin()||(typeof isAmanda==='function'&&isAmanda());if(button.hidden&&dialog.open)dialog.close();},1000);
+  setInterval(()=>{button.hidden=typeof isPrimaryAdmin!=='function'||!isPrimaryAdmin();if(button.hidden&&dialog.open)dialog.close();},1000);
   window.deliveryRules = {fetchPolicy, async capture(policy){
     if(policy.gpsMode==='off')return {};
     let failure='Localização não disponível neste aparelho.';

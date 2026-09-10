@@ -3475,7 +3475,8 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
 .command-deadlines{scroll-margin-top:100px}.command-deadlines .due-dashboard-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.command-deadlines .due-dashboard-item{margin:0}.command-deadlines .due-pill.overdue{background:#ffe9eb;color:#a83240}.command-deadlines .due-pill.today{background:#fff0d5;color:#995d08}
 @media(max-width:760px){.command-calendar-panel{grid-template-columns:1fr;padding:13px;gap:12px}.month-day{min-height:39px;padding:6px 3px 12px}.month-calendar-side{min-height:150px}.command-deadlines .due-dashboard-list{grid-template-columns:1fr}}
 .management-hero{padding:24px;border-radius:8px 22px 22px;background:linear-gradient(120deg,#102e4a,#17617a);color:#fff}.management-hero .kicker{color:#75d6e8}.management-hero h1{margin:7px 0 5px;font-size:28px}.management-hero p{margin:0;color:#c9e0e8;font-size:11px}.management-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.management-metric{padding:16px;border:1px solid #dce6ec;border-radius:8px 16px 16px;background:#fff}.management-metric strong{display:block;color:#17344d;font:800 23px "Space Mono",monospace}.management-metric span{color:#788b99;font-size:9px}.management-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(250px,.6fr);gap:16px}.management-row{display:grid;grid-template-columns:minmax(0,1fr) 150px;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #e7edf1}.management-row:last-child{border-bottom:0}.management-row strong,.management-row small{display:block}.management-row small{margin-top:4px;color:#718491;font-size:9px}.management-row select{font-size:10px}.team-person{display:flex;align-items:center;gap:10px;padding:10px;border-radius:11px;background:#f5f8fa}.team-person+.team-person{margin-top:7px}.team-avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:#dcecf3;color:#196582;font-weight:850}.manager-toggle{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #dce6ec;border-radius:11px;background:#f7fafb}.manager-toggle input{width:auto;margin-top:2px;accent-color:#176b8d}.manager-toggle strong,.manager-toggle small{display:block}.manager-toggle small{margin-top:3px;color:#738694;font-size:9px}.assignment-note{margin-top:5px;color:#5d7889;font-size:9px}
-@media(max-width:760px){.management-metrics{grid-template-columns:repeat(2,1fr)}.management-layout{grid-template-columns:1fr}.management-row{grid-template-columns:1fr}}
+.management-charts{display:grid;grid-template-columns:minmax(300px,.75fr) minmax(360px,1.25fr);gap:14px;margin:16px 0}.management-chart-card{min-height:245px;padding:20px;border:1px solid #dce6ec;border-radius:18px;background:#fff}.management-donut-layout{display:flex;align-items:center;justify-content:center;gap:28px;height:195px}.management-donut{display:grid;place-content:center;width:150px;height:150px;border-radius:50%;background:conic-gradient(#d5942b 0 33%,#2f8fba 33% 66%,#35a174 66%);box-shadow:inset 0 0 0 34px #fff;text-align:center}.management-donut strong{font:850 26px "Space Mono",monospace;color:#17344d}.management-donut span{font-size:9px;color:#788b99}.management-chart-legend{display:grid;gap:13px}.management-chart-legend span{display:flex;align-items:center;gap:7px;color:#607789;font-size:10px}.management-chart-legend i{width:9px;height:9px;border-radius:50%}.management-chart-legend .waiting{background:#d5942b}.management-chart-legend .doing{background:#2f8fba}.management-chart-legend .done{background:#35a174}.management-bars{display:grid;gap:12px;margin-top:20px}.management-bar-head{display:flex;justify-content:space-between;gap:12px;color:#29475d;font-size:10px}.management-bar-track{height:9px;margin-top:5px;border-radius:20px;background:#edf2f5;overflow:hidden}.management-bar-fill{height:100%;border-radius:20px;background:linear-gradient(90deg,#267da2,#43b4c3)}.management-tabs{display:flex;gap:8px;margin:0 0 12px}.management-tabs button{padding:11px 18px;border:1px solid #cbdce5;border-radius:11px;background:#fff;color:#23465d;font-weight:800;cursor:pointer}.management-tabs button.active{border-color:#176b8d;background:#176b8d;color:#fff}.management-detail{margin-top:0}.team-person>div{min-width:0}.team-person strong,.team-person small{display:block}.team-person strong{color:#19364d;font-size:12px;line-height:1.3}.team-person small{margin-top:4px;color:#6f8290;font-size:9px;line-height:1.4}.team-department{margin:16px 0 7px;color:#22789d;font-size:9px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+@media(max-width:760px){.management-charts{grid-template-columns:1fr}.management-donut-layout{gap:18px}.management-row{grid-template-columns:1fr}.management-tabs button{flex:1}}
 </style>
 </head>
 <body>
@@ -4072,15 +4073,13 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
     <h1 id="managementTitle">Visão da equipe</h1>
     <p id="managementSubtitle">Acompanhe a produção, os responsáveis e os prazos do seu departamento.</p>
   </div>
-  <div class="management-metrics">
-    <div class="management-metric"><strong id="managerTotal">0</strong><span>protocolos do setor</span></div>
-    <div class="management-metric"><strong id="managerWaiting">0</strong><span>aguardando</span></div>
-    <div class="management-metric"><strong id="managerDoing">0</strong><span>em andamento</span></div>
-    <div class="management-metric"><strong id="managerDone">0</strong><span>concluídos</span></div>
+  <div class="management-charts">
+    <div class="management-chart-card"><div class="kicker">Fluxo dos protocolos</div><div class="management-donut-layout"><div class="management-donut" id="managementDonut"><strong id="managerTotal">0</strong><span>total</span></div><div class="management-chart-legend"><span><i class="waiting"></i><b id="managerWaiting">0</b> aguardando</span><span><i class="doing"></i><b id="managerDoing">0</b> em andamento</span><span><i class="done"></i><b id="managerDone">0</b> concluídos</span></div></div></div>
+    <div class="management-chart-card"><div class="kicker">Volume por setor</div><div id="managementDepartmentChart" class="management-bars"></div></div>
   </div>
-  <div class="management-layout">
-    <div class="card"><div class="kicker">Distribuição de demandas</div><h2>Protocolos da equipe</h2><p class="hint">Quem criou continua registrado. A atribuição mostra quem é o responsável interno agora.</p><div id="managementProtocols"></div></div>
-    <aside class="card"><div class="kicker">Equipe do setor</div><h2 id="managerTeamTitle">Funcionários</h2><div id="managementTeam"></div></aside>
+  <div class="management-tabs"><button type="button" onclick="switchManagementDetail('protocols',this)">Protocolos</button><button type="button" onclick="switchManagementDetail('departments',this)">Setores</button></div>
+  <div id="managementProtocolsPanel" class="management-detail card hidden"><div class="kicker">Distribuição de demandas</div><h2>Protocolos da equipe</h2><p class="hint">Quem criou continua registrado. A atribuição mostra quem é o responsável interno agora.</p><div id="managementProtocols"></div></div>
+  <div id="managementDepartmentsPanel" class="management-detail card hidden"><div class="kicker">Pessoas e departamentos</div><h2 id="managerTeamTitle">Funcionários</h2><div id="managementTeam"></div>
   </div>
 </section>
 
@@ -4696,7 +4695,9 @@ function isManager(){return Boolean(currentUser().manager)}
 function normalizeText(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase()}
 function isLegalizacao(){return normalizeText(currentUser().dept)==='LEGALIZACAO'}
 function isOperationalAdmin(){return isAdmin()||isLegalizacao()}
-function isAmanda(){return normalizeText(currentUser().login)==='AMANDA'}
+function isAmanda(){return normalizeText(currentUser().login)==='AMANDA'||normalizeText(currentUser().name)==='AMANDA'}
+function hasRestrictedAdmin(){return ['AMANDA','GUILHERME'].some(nome=>normalizeText(currentUser().login)===nome||normalizeText(currentUser().name)===nome)}
+function isPrimaryAdmin(){return normalizeText(currentUser().login)==='ADMIN'}
 function canPrintLabels(){return ['ADMIN','GUILHERME'].includes(normalizeText(currentUser().login))}
 function hasRole(role){
   const u=currentUser();
@@ -4722,7 +4723,7 @@ function roleLabel(u){
 function initials(name){return name.split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase()}
 
 function canAccess(view){
-  if(isAmanda()&&['deleted','users'].includes(view))return false;
+  if(['deleted','users'].includes(view)&&!isPrimaryAdmin())return false;
   if(view==='dashboard')return true;
   if(view==='protocol')return true;
   let el=document.querySelector(`[data-view-access]#${view}`);
@@ -4751,7 +4752,7 @@ function applyPermissions(){
     btn.classList.toggle('hidden',!allowed);
   });
   document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('hidden',!isAdmin()));
-  ['adminSectionTitle','deletedMenuButton','usersMenuButton'].forEach(id=>$(id)?.classList.toggle('hidden',isAmanda()));
+  ['adminSectionTitle','deletedMenuButton','usersMenuButton'].forEach(id=>$(id)?.classList.toggle('hidden',!isPrimaryAdmin()));
   document.querySelectorAll('.label-print-only').forEach(el=>el.classList.toggle('hidden',!canPrintLabels()));
   if($('managementMenuButton'))$('managementMenuButton').textContent=isAdmin()?'Gestão geral':'Gestão do setor';
   $('nAssignmentField')?.classList.toggle('hidden',!isManager());
@@ -4897,12 +4898,32 @@ function renderManagement(){
   $('managerWaiting').textContent=dados.filter(r=>r.status==='Aguardando entrega').length;
   $('managerDoing').textContent=dados.filter(r=>r.status==='Em entrega').length;
   $('managerDone').textContent=dados.filter(r=>r.status==='Entregue').length;
+  const aguardando=dados.filter(r=>r.status==='Aguardando entrega').length;
+  const andamento=dados.filter(r=>r.status==='Em entrega').length;
+  const concluidos=dados.filter(r=>r.status==='Entregue').length;
+  const totalGrafico=Math.max(aguardando+andamento+concluidos,1);
+  const p1=aguardando/totalGrafico*100;
+  const p2=p1+andamento/totalGrafico*100;
+  $('managementDonut').style.background=`conic-gradient(#d5942b 0 ${p1}%,#2f8fba ${p1}% ${p2}%,#35a174 ${p2}% 100%)`;
+  const setores=[...new Set(dados.map(r=>r.dept||'Sem setor'))].map(nome=>({nome,total:dados.filter(r=>(r.dept||'Sem setor')===nome).length})).sort((a,b)=>b.total-a.total);
+  const maior=Math.max(...setores.map(s=>s.total),1);
+  $('managementDepartmentChart').innerHTML=setores.map(s=>`<div><div class="management-bar-head"><strong>${esc(s.nome)}</strong><span>${s.total} ${s.total===1?'protocolo':'protocolos'}</span></div><div class="management-bar-track"><div class="management-bar-fill" style="width:${Math.max(5,s.total/maior*100)}%"></div></div></div>`).join('')||'<div class="empty">Sem dados para o gráfico.</div>';
   $('managerTeamTitle').textContent=isAdmin()?`${equipe.length} usuários`:`${equipe.length} na equipe`;
-  $('managementTeam').innerHTML=equipe.map(u=>`<div class="team-person"><span class="team-avatar">${esc(initials(u.name))}</span><div><strong>${esc(u.name)}</strong><small>${esc(roleLabel(u))}</small></div></div>`).join('')||'<div class="empty">Nenhum funcionário encontrado.</div>';
+  const departamentos=[...new Set(equipe.map(u=>u.dept||'Sem setor'))].sort();
+  $('managementTeam').innerHTML=departamentos.map(dept=>`<div class="team-department">${esc(dept)}</div>${equipe.filter(u=>(u.dept||'Sem setor')===dept).map(u=>`<div class="team-person"><span class="team-avatar">${esc(initials(u.name))}</span><div><strong>${esc(u.name)}</strong><small>${esc(roleLabel(u))}</small></div></div>`).join('')}`).join('')||'<div class="empty">Nenhum funcionário encontrado.</div>';
   $('managementProtocols').innerHTML=dados.map(r=>{
     const elegiveis=equipe.filter(u=>normalizeText(u.dept)===normalizeText(r.dept));
     return `<div class="management-row"><div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(r.dept)} · Criado por ${esc(r.emissor)} · Atribuído a ${esc(r.assignedTo||r.emissor)}</small></div><select aria-label="Atribuir protocolo ${fmtNum(r.num)}" onchange="assignProtocol(${r.id},this.value)">${elegiveis.map(u=>`<option value="${esc(u.name)}" ${normalizeText(u.name)===normalizeText(r.assignedTo||r.emissor)?'selected':''}>${esc(u.name)}</option>`).join('')}</select></div>`;
   }).join('')||'<div class="empty">Nenhum protocolo encontrado.</div>';
+}
+
+function switchManagementDetail(tipo,botao){
+  const alvo=tipo==='protocols'?'managementProtocolsPanel':'managementDepartmentsPanel';
+  const painel=$(alvo);
+  const estavaAberto=!painel.classList.contains('hidden');
+  document.querySelectorAll('.management-detail').forEach(el=>el.classList.add('hidden'));
+  document.querySelectorAll('.management-tabs button').forEach(el=>el.classList.remove('active'));
+  if(!estavaAberto){painel.classList.remove('hidden');botao?.classList.add('active');painel.scrollIntoView({behavior:'smooth',block:'start'})}
 }
 
 async function assignProtocol(id,nome){

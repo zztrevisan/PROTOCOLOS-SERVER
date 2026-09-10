@@ -1460,7 +1460,7 @@ function exigirAdmin(
 // ============================================================
 
 function exigirAdminSensivel(req, res, next) {
-  if (textoNormalizado(req.usuarioLogado?.usuario) === 'AMANDA') {
+  if (textoNormalizado(req.usuarioLogado?.usuario) !== 'ADMIN') {
     return res.status(403).json({ erro: 'Este recurso é reservado à conta administrativa principal.' });
   }
   exigirAdmin(req, res, next);
