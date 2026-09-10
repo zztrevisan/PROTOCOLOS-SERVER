@@ -4528,6 +4528,10 @@ app.put(
 
 app.get('/api/protocolos/:id/etiqueta', exigirLogin, async (req, res) => {
   try {
+    const loginEtiqueta = textoNormalizado(req.usuarioLogado?.usuario);
+    if (!['ADMIN', 'GUILHERME'].includes(loginEtiqueta)) {
+      return res.status(403).json({ erro: 'A impressão de etiquetas está restrita aos usuários Administrador e Guilherme.' });
+    }
     const database = await garantirDb();
     const id = Number(req.params.id);
     const protocolo = await sqlGet(database, 'SELECT * FROM protocolos WHERE id = ? AND COALESCE(excluido, 0) = 0', [id]);
