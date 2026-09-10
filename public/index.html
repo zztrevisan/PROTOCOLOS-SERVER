@@ -3452,6 +3452,23 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   color:#fff!important;
 }
 
+/* DASHBOARD HIPERION · CENTRAL DE OPERAÇÕES */
+.command-dashboard{--command-accent:#35b6e5;--command-rgb:53,182,229;display:none}.command-dashboard.active{display:block}
+.command-hero{position:relative;isolation:isolate;display:flex;align-items:flex-end;justify-content:space-between;gap:28px;min-height:196px;margin-bottom:16px;padding:30px 32px;overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:24px 24px 8px 24px;color:#fff;background:radial-gradient(circle at 80% 15%,rgba(var(--command-rgb),.3),transparent 30%),linear-gradient(128deg,#06172b,#0a2743 58%,#0a3651);box-shadow:0 22px 50px rgba(5,25,44,.18)}
+.command-hero:before{content:"";position:absolute;z-index:-1;width:240px;height:240px;right:-70px;bottom:-155px;border:38px solid rgba(255,255,255,.045);border-radius:50%}.command-hero:after{content:"";position:absolute;z-index:-1;inset:0;opacity:.18;background-image:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px);background-size:34px 34px;mask-image:linear-gradient(90deg,transparent 28%,#000)}
+.command-overline{display:flex;align-items:center;gap:9px;margin-bottom:13px;color:#b9d5e5;font-size:10px;letter-spacing:.16em;text-transform:uppercase}.command-overline span{width:28px;height:2px;border-radius:99px;background:var(--command-accent);box-shadow:0 0 16px rgba(var(--command-rgb),.7)}.command-overline b{font-weight:850}
+.command-hero h2{max-width:700px;margin:0;color:#fff;font-size:clamp(25px,3vw,38px);line-height:1.08;letter-spacing:-.045em}.command-hero p{max-width:650px;margin:12px 0 0;color:#afc4d5;font-size:13px;line-height:1.55}.command-hero-side{display:flex;flex-direction:column;align-items:flex-end;gap:16px;flex:0 0 auto}.command-date{color:#afc4d5;font-size:11px;font-weight:750;text-transform:capitalize}.command-next{min-width:185px;padding:13px 16px;border:1px solid rgba(255,255,255,.13);border-radius:14px 14px 4px 14px;background:rgba(255,255,255,.075);backdrop-filter:blur(8px)}.command-next span{display:block;color:#9eb6c8;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}.command-next strong{display:block;margin-top:4px;color:#fff;font-family:"Space Mono",monospace;font-size:22px;letter-spacing:.04em}
+.command-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}.command-metric{--metric:#35b6e5;position:relative;display:grid;grid-template-columns:auto 1fr;align-items:end;gap:3px 13px;min-height:126px;padding:18px;overflow:hidden;border:1px solid #dbe5ec;border-radius:8px 18px 18px 18px;background:#fff;box-shadow:0 9px 26px rgba(18,48,76,.06)}.command-metric:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--metric)}.command-metric-mark{position:absolute;top:14px;right:15px;color:#aebbc7;font-family:"Space Mono",monospace;font-size:9px;font-weight:700}.command-metric .num{grid-row:1/3;align-self:center;color:#102c45;font-family:"Space Mono",monospace;font-size:31px;font-weight:700;letter-spacing:-.06em}.command-metric strong,.command-metric small{display:block}.command-metric strong{color:#263c50;font-size:11px}.command-metric small{margin-top:3px;color:#8493a1;font-size:9.5px;line-height:1.3}.command-metric.waiting{--metric:#d58a23}.command-metric.transit{--metric:#368fc1}.command-metric.delivered{--metric:#27936b}.command-metric.performance{--metric:var(--command-accent)}
+.command-workspace{display:grid;grid-template-columns:minmax(0,1.48fr) minmax(270px,.62fr);gap:16px;margin-bottom:16px}.command-queue,.command-deadlines{padding:22px;border:1px solid #dbe5ec;border-radius:20px 8px 20px 20px;background:#fff;box-shadow:0 10px 30px rgba(18,48,76,.06)}.command-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px}.command-section-head h2{margin:0;color:#142c43;font-size:20px;letter-spacing:-.03em}.command-section-head p{margin:6px 0 0;color:#81909e;font-size:11px}.command-live{display:inline-flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid #dce7e1;border-radius:999px;color:#4a715f;background:#f6fbf8;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.05em}.command-live i,.command-session span{width:6px;height:6px;border-radius:50%;background:#2e9b70;box-shadow:0 0 0 4px rgba(46,155,112,.1)}
+.command-list .request{position:relative;margin:0 0 8px;padding:13px 14px 13px 17px;border:0;border-radius:4px 12px 12px 4px;background:#f5f8fa;box-shadow:none}.command-list .request:before{content:"";position:absolute;inset:0 auto 0 0;width:3px;border-radius:99px;background:var(--command-accent)}.command-list .request:hover{background:#eef4f7;transform:none;box-shadow:none}.command-list .empty{padding:32px 15px;border:1px dashed #d5e0e8;border-radius:12px;background:#fafcfd}
+.command-actions-panel{position:relative;overflow:hidden;padding:24px;border-radius:8px 20px 20px 20px;color:#fff;background:linear-gradient(150deg,#102f49,#071b2d);box-shadow:0 15px 38px rgba(8,31,51,.16)}.command-actions-panel:after{content:"";position:absolute;width:160px;height:160px;right:-85px;top:-80px;border:28px solid rgba(var(--command-rgb),.12);border-radius:50%}.command-actions-symbol{position:absolute;right:20px;top:13px;color:rgba(255,255,255,.06);font-family:"Space Mono",monospace;font-size:74px;font-weight:900}.command-actions-panel .kicker{color:#8fcbe4!important}.command-actions-panel h2{position:relative;margin:0;max-width:240px;color:#fff;font-size:23px;line-height:1.15;letter-spacing:-.035em}.command-actions-panel>p{min-height:46px;margin:12px 0 18px;color:#a9bfce;font-size:11px;line-height:1.55}.command-actions{display:grid;gap:8px}.command-actions button{width:100%;min-height:41px;margin:0!important;border:1px solid rgba(255,255,255,.1)!important;border-radius:10px!important;background:rgba(255,255,255,.075)!important;color:#eaf5fb!important;text-align:left;transition:background .18s ease,transform .18s ease!important}.command-actions button:first-child{background:var(--command-accent)!important;border-color:var(--command-accent)!important;color:#041b2b!important}.command-actions button:hover{transform:translateX(3px);background:rgba(255,255,255,.13)!important}.command-actions button:first-child:hover{background:var(--command-accent)!important;filter:brightness(1.08)}.command-session{display:flex;align-items:center;gap:8px;margin-top:19px;padding-top:14px;border-top:1px solid rgba(255,255,255,.09);color:#87a1b4;font-size:9px;font-weight:750}
+.command-deadlines{margin-top:0}.command-deadline-count{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:12px;background:#fff7e8;color:#966018}.command-deadline-count strong{font-family:"Space Mono",monospace;font-size:18px}.command-deadline-count span{font-size:9px;font-weight:850;text-transform:uppercase}.command-deadlines .due-dashboard-item{border:0;border-left:3px solid #d9912c;border-radius:4px 11px 11px 4px;background:#f8fafb}.command-deadlines .due-pill{font-size:10px}
+.command-dashboard[data-role="emissor"]{--command-accent:#f0a336;--command-rgb:240,163,54}.command-dashboard[data-role="emissor"] .command-hero{background:radial-gradient(circle at 80% 15%,rgba(240,163,54,.24),transparent 31%),linear-gradient(128deg,#182135,#263a4d 62%,#394a54)}.command-dashboard[data-role="entregador"]{--command-accent:#54c69a;--command-rgb:84,198,154}.command-dashboard[data-role="entregador"] .command-hero{background:radial-gradient(circle at 80% 15%,rgba(84,198,154,.26),transparent 31%),linear-gradient(128deg,#092623,#103c35 60%,#145445)}.command-dashboard[data-role="entregador"] .command-metric.performance{display:none}.command-dashboard[data-role="entregador"] .command-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:980px){.command-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.command-workspace{grid-template-columns:1fr}.command-actions-panel{order:-1}.command-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.command-actions-panel>p{min-height:0}}
+@media(max-width:620px){.command-hero{display:block;min-height:0;padding:22px 19px;border-radius:18px 18px 5px 18px}.command-hero h2{font-size:25px}.command-hero p{font-size:11px}.command-hero-side{align-items:stretch;margin-top:20px}.command-date{display:none}.command-next{min-width:0}.command-metrics,.command-dashboard[data-role="entregador"] .command-metrics{grid-template-columns:1fr 1fr!important;gap:8px!important}.command-metric{min-height:105px!important;padding:14px!important;grid-template-columns:1fr}.command-metric .num{grid-row:auto;font-size:25px}.command-metric small{display:none}.command-metric-mark{top:10px;right:11px}.command-queue,.command-deadlines,.command-actions-panel{padding:17px;border-radius:16px 5px 16px 16px}.command-section-head{display:block}.command-live{margin-top:10px}.command-actions{grid-template-columns:1fr}.command-actions-panel h2{font-size:21px}.command-deadline-count{width:max-content;margin-top:12px}}
+.command-actions button:first-child{color:#fff!important;box-shadow:0 8px 20px rgba(var(--command-rgb),.2)}
+@media(max-width:980px){.command-actions-panel{order:initial}}
+@media(max-width:620px){.command-dashboard[data-role="entregador"] .command-metrics{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
 </style>
 </head>
 <body>
@@ -3650,33 +3667,78 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   <b>Trabalhando offline.</b> As entregas carregadas continuam disponíveis. Alterações serão sincronizadas automaticamente quando o servidor voltar a ficar disponível.
 </div>
 
-<section id="dashboard" class="view active">
-  <div class="cards" id="dashboardStats">
-    <div class="stat"><div class="num" id="sPending">0</div><div class="lbl">Aguardando entrega</div></div>
-    <div class="stat"><div class="num" id="sDoing">0</div><div class="lbl">Em entrega</div></div>
-    <div class="stat"><div class="num" id="sDone">0</div><div class="lbl">Entregues</div></div>
-    <div class="stat" id="nextCard"><div class="num" id="sNext">000001</div><div class="lbl">Próximo protocolo</div></div>
-  </div>
-  <div class="grid">
-    <div class="card" id="dashMainCard">
-      <div class="kicker" id="dashKicker">Entregador</div>
-      <h2 id="dashTitle">Minhas entregas</h2>
-      <div id="dashDeliveries"></div>
+<section id="dashboard" class="view active command-dashboard">
+  <header class="command-hero">
+    <div class="command-hero-copy">
+      <div class="command-overline"><span></span><b id="dashOverline">Central de operações</b></div>
+      <h2 id="dashGreeting">Olá, vamos organizar as entregas.</h2>
+      <p id="dashSummary">Acompanhe o fluxo documental do escritório em tempo real.</p>
     </div>
-    <div class="card">
-      <div class="kicker">Acesso rápido</div><h2>Operação</h2>
-      <div class="actions" id="quickActions"></div>
-      <p class="hint" id="roleHelp"></p>
-      <div class="sync-ok">Sessão autenticada · sistema conectado</div>
+    <div class="command-hero-side">
+      <div class="command-date" id="dashDate">Hoje</div>
+      <div class="command-next" id="nextCard">
+        <span>Próximo protocolo</span>
+        <strong id="sNext">000001</strong>
+      </div>
     </div>
+  </header>
+
+  <div class="command-metrics" id="dashboardStats">
+    <article class="command-metric waiting">
+      <span class="command-metric-mark">01</span>
+      <div class="num" id="sPending">0</div>
+      <div><strong>Aguardando</strong><small>prontos para entrega</small></div>
+    </article>
+    <article class="command-metric transit">
+      <span class="command-metric-mark">02</span>
+      <div class="num" id="sDoing">0</div>
+      <div><strong>Em movimento</strong><small>entregas em andamento</small></div>
+    </article>
+    <article class="command-metric delivered">
+      <span class="command-metric-mark">03</span>
+      <div class="num" id="sDone">0</div>
+      <div><strong>Concluídos</strong><small>protocolos entregues</small></div>
+    </article>
+    <article class="command-metric performance">
+      <span class="command-metric-mark">%</span>
+      <div class="num" id="sRate">0%</div>
+      <div><strong>Conclusão</strong><small>do fluxo registrado</small></div>
+    </article>
   </div>
-  <div class="card due-dashboard">
-    <div class="due-dashboard-head">
-      <div><div class="kicker">Prazos</div><h2>Próximos vencimentos</h2><p class="hint">Documentos que vencem nos próximos 3 dias.</p></div>
-      <div class="due-dashboard-count" id="dueDashboardCount">0</div>
+
+  <div class="command-workspace">
+    <section class="command-queue" id="dashMainCard">
+      <div class="command-section-head">
+        <div>
+          <div class="kicker" id="dashKicker">Entregador</div>
+          <h2 id="dashTitle">Minha fila de trabalho</h2>
+        </div>
+        <span class="command-live"><i></i> Atualizado</span>
+      </div>
+      <div class="command-list" id="dashDeliveries"></div>
+    </section>
+
+    <aside class="command-actions-panel">
+      <div class="command-actions-symbol" aria-hidden="true">H</div>
+      <div class="kicker">Atalhos do perfil</div>
+      <h2>O que você precisa fazer?</h2>
+      <p id="roleHelp"></p>
+      <div class="command-actions" id="quickActions"></div>
+      <div class="command-session"><span></span> Sessão autenticada e protegida</div>
+    </aside>
+  </div>
+
+  <section class="command-deadlines">
+    <div class="command-section-head">
+      <div>
+        <div class="kicker">Radar de prazos</div>
+        <h2>Próximos vencimentos</h2>
+        <p>Documentos que exigem atenção nos próximos três dias.</p>
+      </div>
+      <div class="command-deadline-count"><strong id="dueDashboardCount">0</strong><span>no radar</span></div>
     </div>
     <div class="due-dashboard-list" id="dueDashboardList"></div>
-  </div>
+  </section>
 </section>
 
 <section id="requests" class="view">
@@ -5995,11 +6057,22 @@ function renderDashboard(){
   const pending=scope.filter(r=>r.status==='Aguardando entrega').length;
   const doing=scope.filter(r=>r.status==='Em entrega').length;
   const done=scope.filter(r=>r.status==='Entregue').length;
+  const fluxoTotal=pending+doing+done;
+  const taxaConclusao=fluxoTotal?Math.round((done/fluxoTotal)*100):0;
   $('sPending').textContent=pending;
   $('sDoing').textContent=doing;
   $('sDone').textContent=done;
+  $('sRate').textContent=`${taxaConclusao}%`;
   $('sNext').textContent=fmtNum(nextNumber());
   $('nextCard').classList.toggle('hidden',!(isOperationalAdmin()||u.roles.includes('emissor')));
+
+  const dashboard=$('dashboard');
+  const primeiroNome=String(u.name||'Usuário').trim().split(/\s+/)[0];
+  const horaAtual=new Date().getHours();
+  const saudacao=horaAtual<12?'Bom dia':horaAtual<18?'Boa tarde':'Boa noite';
+  $('dashDate').textContent=new Intl.DateTimeFormat('pt-BR',{
+    weekday:'long',day:'2-digit',month:'long'
+  }).format(new Date());
 
   const resumoItem=r=>{
     const itens=protocolItemsFromRecord(r);
@@ -6007,30 +6080,55 @@ function renderDashboard(){
   };
 
   let qa=[],help='';
-  if(isOperationalAdmin()){
+  if(isAdmin()){
+    dashboard.dataset.role='admin';
+    $('dashOverline').textContent='Visão executiva';
+    $('dashGreeting').textContent=`${saudacao}, ${primeiroNome}.`;
+    $('dashSummary').textContent=`A operação registra ${pending+doing} protocolo${pending+doing===1?'':'s'} em andamento e ${done} concluído${done===1?'':'s'}.`;
     qa.push(`<button class="primary" onclick="show('new')">Nova solicitação</button>`);
     qa.push(`<button class="primary secondary" onclick="show('deliveries')">Minhas entregas</button>`);
     qa.push(`<button class="primary secondary" onclick="show('history')">Histórico</button>`);
-    if(isAdmin())qa.push(`<button class="primary secondary" onclick="show('users')">Gerenciar usuários</button>`);
-    help=isAdmin()
-      ? 'Administrador geral com acesso completo, incluindo usuários e protocolos excluídos.'
-      : 'Legalização com administração operacional, sem acesso a usuários ou protocolos excluídos.';
-    $('dashKicker').textContent=isAdmin()?'Administrador geral':'Legalização';
-    $('dashTitle').textContent='Minhas entregas';
+    qa.push(`<button class="primary secondary" onclick="show('users')">Gerenciar usuários</button>`);
+    help='Controle completo da operação, dos usuários e da trilha documental.';
+    $('dashKicker').textContent='Responsabilidade direta';
+    $('dashTitle').textContent='Entregas sob sua responsabilidade';
     $('dashDeliveries').innerHTML=myDeliveries().map(r=>`<div class="request"><div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(resumoItem(r))}</small></div>${deliveryActionButton(r,true)}</div>`).join('')||'<div class="empty">Nenhuma entrega atribuída a este usuário.</div>';
+  }else if(isLegalizacao()){
+    dashboard.dataset.role='admin';
+    $('dashOverline').textContent='Coordenação operacional';
+    $('dashGreeting').textContent=`${saudacao}, ${primeiroNome}.`;
+    $('dashSummary').textContent=`Existem ${pending} protocolo${pending===1?'':'s'} aguardando saída e ${doing} em entrega.`;
+    qa.push(`<button class="primary" onclick="show('new')">Nova solicitação</button>`);
+    qa.push(`<button class="primary secondary" onclick="show('requests')">Acompanhar solicitações</button>`);
+    qa.push(`<button class="primary secondary" onclick="show('history')">Consultar histórico</button>`);
+    qa.push(`<button class="primary secondary" onclick="show('companies')">Gerenciar empresas</button>`);
+    help='Coordenação dos protocolos e cadastros operacionais do escritório.';
+    $('dashKicker').textContent='Legalização';
+    $('dashTitle').textContent='Fila operacional';
+    $('dashDeliveries').innerHTML=scope.filter(r=>['Aguardando entrega','Em entrega'].includes(r.status)).slice(0,6).map(r=>`<div class="request"><div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(resumoItem(r))} · ${esc(r.resp||'Sem entregador')}</small></div>${statusBadge(r.status)}</div>`).join('')||'<div class="empty">A fila operacional está em dia.</div>';
   }else if(u.roles.includes('emissor')){
+    dashboard.dataset.role='emissor';
+    $('dashOverline').textContent='Mesa de emissão';
+    $('dashGreeting').textContent=`${saudacao}, ${primeiroNome}.`;
+    $('dashSummary').textContent=`Você acompanha ${pending+doing} ${pending+doing===1?'solicitação':'solicitações'} em aberto no seu fluxo.`;
     qa.push(`<button class="primary" onclick="show('new')">Nova solicitação</button>`);
     qa.push(`<button class="primary secondary" onclick="show('requests')">Minhas solicitações</button>`);
     help='Emissor: cria protocolos do próprio setor e acompanha as solicitações emitidas por ele.';
-    $('dashKicker').textContent=u.dept;
+    $('dashKicker').textContent=`Produção · ${u.dept}`;
     $('dashTitle').textContent='Minhas solicitações recentes';
     const list=visibleRequestsForUser().slice(0,5);
     $('dashDeliveries').innerHTML=list.map(r=>`<div class="request"><div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(resumoItem(r))}</small></div>${statusBadge(r.status)}</div>`).join('')||'<div class="empty">Nenhuma solicitação criada por este usuário.</div>';
   }else{
+    dashboard.dataset.role='entregador';
+    $('dashOverline').textContent='Central de rota';
+    $('dashGreeting').textContent=`${saudacao}, ${primeiroNome}.`;
+    $('dashSummary').textContent=pending+doing
+      ? `Sua rota possui ${pending+doing} entrega${pending+doing===1?'':'s'} que ainda precisa${pending+doing===1?'':'m'} ser concluída${pending+doing===1?'':'s'}.`
+      : 'Sua rota está livre. Nenhuma entrega exige ação agora.';
     qa.push(`<button class="primary" onclick="show('deliveries')">Minhas entregas</button>`);
     help='Entregador: visualiza somente as entregas atribuídas ao próprio usuário.';
-    $('dashKicker').textContent='Entregador';
-    $('dashTitle').textContent='Minhas entregas';
+    $('dashKicker').textContent='Próximas paradas';
+    $('dashTitle').textContent='Minha rota de entrega';
     $('dashDeliveries').innerHTML=myDeliveries().map(r=>`<div class="request"><div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(resumoItem(r))}</small></div>${deliveryActionButton(r,true)}</div>`).join('')||'<div class="empty">Nenhuma entrega atribuída a este usuário.</div>';
   }
   qa.push(`<button class="primary secondary" onclick="show('completed')">Protocolos entregues</button>`);
