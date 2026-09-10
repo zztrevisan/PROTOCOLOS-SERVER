@@ -3631,7 +3631,7 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   <button class="menu-btn" data-view="completed" data-access="all" onclick="show('completed',this)">Protocolos entregues</button>
   <button class="menu-btn" data-view="companies" data-access="all" onclick="show('companies',this)">Empresas</button>
   <button class="menu-btn" data-view="history" data-access="operational" onclick="show('history',this)">Histórico</button>
-  <button class="menu-btn" data-view="management" data-access="manager" onclick="show('management',this)">Gestão do setor</button>
+  <button class="menu-btn" id="managementMenuButton" data-view="management" data-access="manager,admin" onclick="show('management',this)">Gestão do setor</button>
 
   <div class="menu-section-title admin-only">Administração</div>
   <button class="menu-btn" data-view="deleted" data-access="admin" onclick="show('deleted',this)">Protocolos excluídos</button>
@@ -4066,9 +4066,9 @@ body.printing-protocol #printArea .print-items-v17:not(.has-competence):not(.has
   </div>
 </section>
 
-<section id="management" class="view" data-view-access="manager">
+<section id="management" class="view" data-view-access="manager,admin">
   <div class="management-hero">
-    <div class="kicker">Gestão do setor</div>
+    <div class="kicker" id="managementKicker">Gestão do setor</div>
     <h1 id="managementTitle">Visão da equipe</h1>
     <p id="managementSubtitle">Acompanhe a produção, os responsáveis e os prazos do seu departamento.</p>
   </div>
@@ -4748,6 +4748,7 @@ function applyPermissions(){
     btn.classList.toggle('hidden',!allowed);
   });
   document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('hidden',!isAdmin()));
+  if($('managementMenuButton'))$('managementMenuButton').textContent=isAdmin()?'Gestão geral':'Gestão do setor';
   $('nAssignmentField')?.classList.toggle('hidden',!isManager());
   canManageCompanies=isAdmin()||isLegalizacao();
   if(!canManageCompanies)$('companyEditor')?.classList.add('hidden');
@@ -4870,7 +4871,7 @@ function populateDeliverers(){
   }
 }
 
-function teamUsers(){return users.filter(u=>normalizeText(u.dept)===normalizeText(currentUser().dept))}
+function teamUsers(){return isAdmin()?users:users.filter(u=>normalizeText(u.dept)===normalizeText(currentUser().dept))}
 function populateTeamAssignment(){
   const campo=$('nAssignment');
   if(!campo||!isManager())return;
@@ -4879,17 +4880,24 @@ function populateTeamAssignment(){
 }
 
 function renderManagement(){
-  if(!isManager()||!$('managementProtocols'))return;
+  if((!isManager()&&!isAdmin())||!$('managementProtocols'))return;
   const equipe=teamUsers();
   const dados=requests.filter(r=>isAdmin()||normalizeText(r.dept)===normalizeText(currentUser().dept));
-  $('managementTitle').textContent=`Gestão · ${currentUser().dept}`;
+  $('managementTitle').textContent=isAdmin()?'Gestão geral da operação':`Gestão · ${currentUser().dept}`;
+  $('managementKicker').textContent=isAdmin()?'Administração executiva':'Gestão do setor';
+  $('managementSubtitle').textContent=isAdmin()
+    ? 'Acompanhe todos os protocolos, responsáveis, departamentos e prazos do escritório.'
+    : 'Acompanhe a produção, os responsáveis e os prazos do seu departamento.';
   $('managerTotal').textContent=dados.length;
   $('managerWaiting').textContent=dados.filter(r=>r.status==='Aguardando entrega').length;
   $('managerDoing').textContent=dados.filter(r=>r.status==='Em entrega').length;
   $('managerDone').textContent=dados.filter(r=>r.status==='Entregue').length;
-  $('managerTeamTitle').textContent=`${equipe.length} na equipe`;
+  $('managerTeamTitle').textContent=isAdmin()?`${equipe.length} usuários`:`${equipe.length} na equipe`;
   $('managementTeam').innerHTML=equipe.map(u=>`<div class="team-person"><span class="team-avatar">${esc(initials(u.name))}</span><div><strong>${esc(u.name)}</strong><small>${esc(roleLabel(u))}</small></div></div>`).join('')||'<div class="empty">Nenhum funcionário encontrado.</div>';
-  $('managementProtocols').innerHTML=dados.map(r=>`<div class="management-row"><div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>Criado por ${esc(r.emissor)} · Atribuído a ${esc(r.assignedTo||r.emissor)}</small></div><select aria-label="Atribuir protocolo ${fmtNum(r.num)}" onchange="assignProtocol(${r.id},this.value)">${equipe.map(u=>`<option value="${esc(u.name)}" ${normalizeText(u.name)===normalizeText(r.assignedTo||r.emissor)?'selected':''}>${esc(u.name)}</option>`).join('')}</select></div>`).join('')||'<div class="empty">Nenhum protocolo do setor.</div>';
+  $('managementProtocols').innerHTML=dados.map(r=>{
+    const elegiveis=equipe.filter(u=>normalizeText(u.dept)===normalizeText(r.dept));
+    return `<div class="management-row"><div><strong>${fmtNum(r.num)} · ${esc(r.cliente)}</strong><small>${esc(r.dept)} · Criado por ${esc(r.emissor)} · Atribuído a ${esc(r.assignedTo||r.emissor)}</small></div><select aria-label="Atribuir protocolo ${fmtNum(r.num)}" onchange="assignProtocol(${r.id},this.value)">${elegiveis.map(u=>`<option value="${esc(u.name)}" ${normalizeText(u.name)===normalizeText(r.assignedTo||r.emissor)?'selected':''}>${esc(u.name)}</option>`).join('')}</select></div>`;
+  }).join('')||'<div class="empty">Nenhum protocolo encontrado.</div>';
 }
 
 async function assignProtocol(id,nome){
@@ -6100,7 +6108,7 @@ function renderRequests(){
   });
 
   $('requestList').innerHTML=list.map(r=>{
-    const podeAbrir=hasRole('entregador')&&r.status!=='Entregue'&&r.status!=='Cancelado';
+    const podeEntregar=hasRole('entregador')&&r.status!=='Entregue'&&r.status!=='Cancelado'&&(r.resp===currentUser().name||isOperationalAdmin());
     const podeCancelar=r.status==='Aguardando entrega'||r.status==='Em entrega';
     const itens=protocolItemsFromRecord(r);
     const resumo=itens.length===1?itens[0].descricao:`${itens.length} documentos`;
@@ -6116,7 +6124,8 @@ function renderRequests(){
         <div class="statusline">
           ${statusBadge(r.status)}
           ${r.status!=='Entregue'?`<button class="primary secondary smallbtn" onclick="abrirOpcoesEtiqueta(${r.id})">Etiqueta</button>`:''}
-          ${podeAbrir?`<button class="primary smallbtn" onclick="openDelivery(${r.id})">Abrir entrega</button>`:''}
+          <button class="primary secondary smallbtn" onclick="openProtocolConsultation(${r.id})">Abrir</button>
+          ${podeEntregar?`<button class="primary smallbtn" onclick="openDelivery(${r.id})">Entregar</button>`:''}
           ${podeCancelar?`<button class="primary warning smallbtn" onclick="cancelProtocolById(${r.id})">Cancelar</button>`:''}
           ${isAdmin()?`<button class="primary danger smallbtn" onclick="deleteProtocol(${r.id})">Excluir</button>`:''}
         </div>
@@ -6133,9 +6142,9 @@ function myDeliveries(){
 
 function deliveryActionButton(r,compact=false){
   if(r.status==='Aguardando sincronização'){
-    return `<button class="primary secondary smallbtn" disabled title="Esta entrega já foi registrada neste dispositivo e aguarda o servidor.">Aguardando rede</button>`;
+    return `<button class="primary secondary smallbtn" onclick="openProtocolConsultation(${r.id})">Abrir</button><button class="primary secondary smallbtn" disabled title="Esta entrega já foi registrada neste dispositivo e aguarda o servidor.">Aguardando rede</button>`;
   }
-  return `<button class="primary smallbtn" onclick="openDelivery(${r.id})">${compact?'Abrir':'Coletar assinatura'}</button>`;
+  return `<button class="primary secondary smallbtn" onclick="openProtocolConsultation(${r.id})">Abrir</button><button class="primary smallbtn" onclick="openDelivery(${r.id})">${compact?'Entregar':'Coletar assinatura'}</button>`;
 }
 
 function renderDeliveries(){
@@ -6239,7 +6248,13 @@ function renderCalendarioDashboard(scope,agora){
 
 function renderDashboard(){
   const u=currentUser();
-  const scope=isOperationalAdmin()?requests:(u.roles.includes('emissor')?visibleRequestsForUser():requests.filter(r=>r.resp===u.name));
+  const scope=isOperationalAdmin()
+    ? requests
+    : isManager()
+      ? requests.filter(r=>normalizeText(r.dept)===normalizeText(u.dept))
+      : u.roles.includes('emissor')
+        ? visibleRequestsForUser()
+        : requests.filter(r=>r.resp===u.name);
   const pending=scope.filter(r=>r.status==='Aguardando entrega').length;
   const doing=scope.filter(r=>r.status==='Em entrega').length;
   const done=scope.filter(r=>r.status==='Entregue').length;
@@ -6357,6 +6372,38 @@ function renderDashboard(){
 }
 
 function renderAll(){renderDashboard();renderRequests();renderDeliveries();renderCompleted();renderManagement()}
+
+function openProtocolConsultation(id){
+  const p=requests.find(x=>x.id===Number(id))||protocols.find(x=>x.id===Number(id));
+  if(!p){alert('Protocolo não encontrado.');return;}
+
+  currentId=p.id;
+  setProtocolMode(true);
+  const itens=protocolItemsFromRecord(p);
+  const emissao=formatarDataHoraProtocolo(p.created);
+  $('pNum').value=fmtNum(p.num);
+  $('pCli').value=p.cliente||'';
+  atualizarEnderecoProtocolo(p.endereco||'');
+  $('pDept').value=p.dept||'';
+  $('pDesc').value=itens.map(x=>x.descricao).join('\n');
+  $('pVenc').value=itens[0]?.vencimento?brDate(itens[0].vencimento):'';
+  $('pEmissor').value=p.emissor||'';
+  $('pResp').value=p.resp||'';
+  $('pObs').value=p.obs||'—';
+  $('pRec').value=p.recebido||'';
+  $('pvNum').textContent=fmtNum(p.num);
+  $('pvCli').textContent=p.cliente||'';
+  $('pvEndereco').textContent=p.endereco||'—';
+  $('pvDept').textContent=p.dept||'';
+  $('pvEmissor').textContent=p.emissor||'—';
+  $('pvEmit').textContent=p.issueDate||emissao.data||'';
+  $('pvDate').textContent=p.date||'';
+  $('pvTime').textContent=p.time||'';
+  $('pvRec').textContent=p.recebido||'';
+  renderProtocolItems(itens);
+  if(p.sign)$('pvSign').src=p.sign;else $('pvSign').removeAttribute('src');
+  show('protocol');
+}
 
 async function openDelivery(id){
 
